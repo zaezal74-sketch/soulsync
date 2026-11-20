@@ -39,6 +39,12 @@
 
   --tab-h: 72px;
   --header-h: 64px;
+
+  /* Bottom tab buttons: a quiet face and a slightly clearer active face. */
+  --tab-face: rgba(255, 255, 255, .72);
+  --tab-face-line: var(--line);
+  --tab-on-face: #ede3fb;
+  --tab-on-line: var(--violet);
 }
 
 /* ------------------------------------------------------------------- reset */
@@ -759,9 +765,9 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .tabbar {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-  padding: 7px 8px calc(10px + env(safe-area-inset-bottom, 0px));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 7px 10px calc(10px + env(safe-area-inset-bottom, 0px));
   background: var(--bg);
   background: color-mix(in srgb, var(--bg) 92%, transparent);
   backdrop-filter: blur(16px);
@@ -770,14 +776,29 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 .tab {
   display: grid; justify-items: center; align-content: center; gap: 4px;
-  padding: 8px 2px 6px;
+  min-width: 0;
+  padding: 7px 2px 5px;
+  border: 1px solid var(--tab-face-line);
   border-radius: 14px;
+  background: var(--tab-face);
   font-size: 10.5px; font-weight: 700; line-height: 1.2; color: var(--muted);
-  transition: color .18s ease, background .18s ease;
+  transition: color .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .12s ease;
 }
-.tab span { display: block; white-space: nowrap; line-height: 1.2; }
-.tab svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.tab.is-active { color: var(--violet-strong); background: var(--violet-soft); }
+.tab span { display: block; max-width: 100%; white-space: nowrap; line-height: 1.2; }
+.tab svg {
+  width: 22px; height: 22px;
+  fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+  transition: stroke-width .18s ease;
+}
+/* The active face reads a touch stronger (1.5px) without the half-pixel reflow
+   a thicker border would cause: 1px border + a .5px inset ring. */
+.tab.is-active {
+  color: var(--violet-strong);
+  background: var(--tab-on-face);
+  border-color: var(--tab-on-line);
+  box-shadow: inset 0 0 0 .5px var(--tab-on-line);
+}
+.tab.is-active svg { stroke-width: 1.9; }
 .tab:active { transform: scale(.97); }
 
 /* ------------------------------------------------------------- focus mode */
@@ -800,6 +821,12 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   --sage: #9dbba8;
   --sage-soft: #1e2a24;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, .3), 0 14px 30px -22px rgba(0, 0, 0, .9);
+
+  /* Tab buttons in the dark focus theme: a faint glass face instead of white. */
+  --tab-face: rgba(255, 255, 255, .04);
+  --tab-face-line: #2f2542;
+  --tab-on-face: #2e2246;
+  --tab-on-line: #8f74c4;
 }
 .phone-frame.focus-mode .app-header,
 .phone-frame.focus-mode .tabbar { opacity: .55; }
@@ -844,7 +871,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 @media (min-width: 760px) {
   .sheet { border-radius: 28px; margin-bottom: 24px; max-width: 400px; }
   .tabbar { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
-  .tab { padding-top: 9px; padding-bottom: 7px; }
+  .tab { padding-top: 8px; padding-bottom: 6px; }
 }
 @keyframes slideUp { from { transform: translateY(28px); opacity: .6; } to { transform: none; opacity: 1; } }
 
@@ -925,6 +952,9 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 
 /* -------------------------------------------------------------- small tweaks */
 @media (max-width: 360px) {
+  .tabbar { gap: 5px; padding-left: 8px; padding-right: 8px; }
+  .tab { font-size: 10px; padding-left: 1px; padding-right: 1px; }
+  .tab svg { width: 20px; height: 20px; }
   .app-main { padding: 14px 14px 22px; }
   .app-main.is-coach { padding-bottom: 0; }
   .hero h2 { font-size: 21px; }
