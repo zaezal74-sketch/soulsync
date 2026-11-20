@@ -10,6 +10,9 @@ audio/ko-female/ from the text the app shows. Needs `pip install edge-tts`
     python3 tools/make-voice-audio.py male     # only audio/ko-male/
     python3 tools/make-voice-audio.py female   # only audio/ko-female/
 
+    # --only re-records just the named files, e.g. after a prayer text edit:
+    python3 tools/make-voice-audio.py --only=creed.mp3,hailMary.mp3
+
 Each voice is slowed to -20% so it reads as a calm prayer rather than a
 newsreader; the pitch is lowered a little further for the male voice so it
 sits under the device's default register.
@@ -51,9 +54,15 @@ async def one(job, sem, gender):
     return False
 
 
-async def main(gender):
+async def main(gender, only=None):
     with open(JOBS, encoding="utf-8") as fh:
         jobs = json.load(fh)
+    if only:
+        jobs = [job for job in jobs if job["file"] in only]
+        missing = only - {job["file"] for job in jobs}
+        if missing:
+            print("not in voices.json:", ", ".join(sorted(missing)))
+            return 1
     os.makedirs(os.path.join(OUT, VOICES[gender]["dir"]), exist_ok=True)
     print("%s — %s (%s, %s)" % (gender, VOICES[gender]["voice"], VOICES[gender]["rate"], VOICES[gender]["pitch"]))
     sem = asyncio.Semaphore(CONCURRENCY)
@@ -67,7 +76,12 @@ async def main(gender):
 
 
 if __name__ == "__main__":
-    wanted = sys.argv[1] if len(sys.argv) > 1 else "all"
+    plain = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
+    wanted = plain[0] if plain else "all"
+    only = set()
+    for arg in sys.argv[1:]:
+        if arg.startswith("--only="):
+            only = {name.strip() for name in arg.split("=", 1)[1].split(",") if name.strip()}
     if wanted == "all":
         genders = list(VOICES)
     elif wanted in VOICES:
@@ -77,6 +91,6 @@ if __name__ == "__main__":
         sys.exit(2)
     code = 0
     for g in genders:
-        if asyncio.run(main(g)) != 0:
+        if asyncio.run(main(g, only or None)) != 0:
             code = 1
     sys.exit(code)
