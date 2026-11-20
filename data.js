@@ -692,8 +692,201 @@
           en: "Hold one thing you are thankful for, and close slowly with “Amen.”"
         }
       }
-    ]
+    ],
+
+    /* Four 15-second steps for each heart the home screen offers. The sheet
+       picks the set that matches today's mood; the generic steps above stay as
+       the fallback for a day with no mood chosen yet.  Tone: warm, Catholic,
+       never "you must" — every prayer asks for help rather than demands it. */
+    byMood: {
+      tired: [
+        {
+          title: { ko: "숨 고르기", en: "Breathe" },
+          text: {
+            ko: "어깨에 힘을 빼고 숨을 천천히 들이쉬고 내쉬어요. 오늘 여기까지 온 것만으로 충분히 애쓰셨어요.",
+            en: "Let your shoulders drop and breathe in and out slowly. Getting here today was already a lot."
+          }
+        },
+        {
+          title: { ko: "지친 마음 그대로", en: "This tired heart" },
+          text: {
+            ko: "지금의 지침은 게을러서가 아니라 오래 견뎠기 때문이에요. 마음을 정리하지 않고 그대로 주님께 가져가요.",
+            en: "This tiredness is not laziness — it is what long endurance feels like. Bring your heart to the Lord just as it is, without tidying it up."
+          }
+        },
+        {
+          title: { ko: "짧은 기도", en: "A short prayer" },
+          text: {
+            ko: "“주님, 오늘은 여기까지 했습니다. 남은 하루는 맡깁니다.” 마음속으로 두 번 천천히 반복해 보세요.",
+            en: "“Lord, this is what I could do today. I place the rest in your hands.” Repeat it slowly, twice."
+          }
+        },
+        {
+          title: { ko: "쉬게 하소서", en: "Rest" },
+          text: {
+            ko: "“수고하고 무거운 짐 진 자들아 다 내게로 오너라”(마태오 11,28)를 떠올리며, 숨을 한 번 길게 내쉬고 ‘아멘’.",
+            en: "Hold “Come to me, all you who are weary” (Matthew 11:28), breathe out once, long and slow, and close with “Amen.”"
+          }
+        }
+      ],
+      anxious: [
+        {
+          title: { ko: "손 내려놓기", en: "Let your hands rest" },
+          text: {
+            ko: "손바닥을 무릎에 얹고 4초 들이쉬고 6초 내쉬기를 세 번 해 보세요. 지금 이 순간, 나는 안전합니다.",
+            en: "Rest your palms on your knees: breathe in for four, out for six, three times. Right now, in this moment, you are safe."
+          }
+        },
+        {
+          title: { ko: "걱정 하나만", en: "Just one worry" },
+          text: {
+            ko: "떠오르는 걱정 하나를 골라 마음속으로 이름을 붙여요. 아직 오지 않은 일을 미리 견디지 않아도 괜찮아요.",
+            en: "Choose one worry and name it quietly. You do not have to live through what has not happened yet."
+          }
+        },
+        {
+          title: { ko: "짧은 기도", en: "A short prayer" },
+          text: {
+            ko: "“주님, 제가 붙잡고 있는 이 걱정을 맡깁니다. 제 마음을 평화로 지켜 주세요.” 세 번 천천히.",
+            en: "“Lord, I place this worry in your hands. Guard my heart with your peace.” Slowly, three times."
+          }
+        },
+        {
+          title: { ko: "평화로 마무리", en: "Close in peace" },
+          text: {
+            ko: "“아무것도 염려하지 말고…”(필리피 4,6-7)를 떠올리며 숨을 길게 내쉬고 ‘아멘’.",
+            en: "Hold “Do not be anxious about anything” (Philippians 4:6-7), breathe out long, and close with “Amen.”"
+          }
+        }
+      ],
+      calm: [
+        {
+          title: { ko: "지금 느끼기", en: "Notice now" },
+          text: {
+            ko: "조용한 지금을 그대로 느껴 보세요. 서두르지 않아도 되는 시간이에요.",
+            en: "Notice the quiet that is here. This is a time that does not need to be rushed."
+          }
+        },
+        {
+          title: { ko: "작은 선함 찾기", en: "One small good thing" },
+          text: {
+            ko: "오늘 나에게 좋았던 작은 것 하나를 떠올려요. 평온한 날은 발견하기에 좋은 날이에요.",
+            en: "Name one small good thing from today. A calm day is a good day for noticing."
+          }
+        },
+        {
+          title: { ko: "짧은 기도", en: "A short prayer" },
+          text: {
+            ko: "“주님, 이 고요함을 주셔서 감사합니다. 이 마음을 오래 지켜 주세요.”",
+            en: "“Lord, thank you for this quiet. Keep this heart steady.”"
+          }
+        },
+        {
+          title: { ko: "나누며 마무리", en: "Close by sharing" },
+          text: {
+            ko: "이 고요함이 필요한 한 사람을 떠올리며 축복하고, 천천히 ‘아멘’.",
+            en: "Hold someone who needs this quiet too, bless them, and close slowly with “Amen.”"
+          }
+        }
+      ],
+      grateful: [
+        {
+          title: { ko: "숨으로 받기", en: "Receive with breath" },
+          text: {
+            ko: "숨을 한 번 깊게 들이쉬고 내쉬며, 오늘 하루를 선물로 받아들여요.",
+            en: "Breathe in deeply, breathe out, and receive today as a gift."
+          }
+        },
+        {
+          title: { ko: "감사 하나 꺼내기", en: "Name one thanks" },
+          text: {
+            ko: "지금 떠오르는 감사 하나를 소리 내어 말해 보세요. 감사는 말할수록 오래 남아요.",
+            en: "Say one thing you are thankful for out loud. Gratitude lasts longer when it is spoken."
+          }
+        },
+        {
+          title: { ko: "짧은 기도", en: "A short prayer" },
+          text: {
+            ko: "“주님, 이 기쁨을 주신 분이 당신임을 압니다. 감사합니다.” 두 번 천천히.",
+            en: "“Lord, I know this joy came from you. Thank you.” Slowly, twice."
+          }
+        },
+        {
+          title: { ko: "나눔으로 마무리", en: "Close by sharing" },
+          text: {
+            ko: "그 감사에 함께한 사람 한 명을 떠올리며 축복하고 ‘아멘’.",
+            en: "Remember one person who was part of it, bless them, and close with “Amen.”"
+          }
+        }
+      ],
+      lonely: [
+        {
+          title: { ko: "곁을 느끼기", en: "Feel the company" },
+          text: {
+            ko: "한 손을 가슴에 얹고 숨을 천천히 쉬어요. 이 자리에 혼자 있는 것이 아니에요.",
+            en: "Rest one hand on your heart and breathe slowly. You are not alone in this place."
+          }
+        },
+        {
+          title: { ko: "비어 있는 마음", en: "The empty feeling" },
+          text: {
+            ko: "빈 느낌을 억지로 채우지 않아요. 외로움은 사랑할 곳이 있다는 신호예요.",
+            en: "You do not have to fill the emptiness by force. Loneliness is a sign that your heart has love to give."
+          }
+        },
+        {
+          title: { ko: "짧은 기도", en: "A short prayer" },
+          text: {
+            ko: "“주님, 제 곁에 계신 것을 알게 해 주세요. 이 저녁을 함께해 주세요.”",
+            en: "“Lord, let me know you are beside me. Stay with me this evening.”"
+          }
+        },
+        {
+          title: { ko: "한 사람 떠올리기", en: "One person" },
+          text: {
+            ko: "떠오르는 한 사람을 위해 짧게 기도하고, “주님은 마음이 꺾인 이들에게 가까이 계시고”(시편 34,19)로 마무리해요.",
+            en: "Pray briefly for one person who comes to mind, and close with “The Lord is close to the brokenhearted” (Psalm 34:18)."
+          }
+        }
+      ],
+      joyful: [
+        {
+          title: { ko: "기쁨에 머물기", en: "Stay with the joy" },
+          text: {
+            ko: "오늘 웃음이 났던 순간을 하나 떠올리며 숨을 천천히 쉬어요.",
+            en: "Remember one moment today when you smiled, and breathe slowly."
+          }
+        },
+        {
+          title: { ko: "기쁨의 출처", en: "Where it came from" },
+          text: {
+            ko: "이 기쁨이 어디서 왔는지 잠깐 생각해 봐요. 혼자 만든 것이 아닐 수도 있어요.",
+            en: "Wonder for a moment where this joy came from. You may not have made it alone."
+          }
+        },
+        {
+          title: { ko: "짧은 기도", en: "A short prayer" },
+          text: {
+            ko: "“주님, 이 기쁨을 주셔서 감사합니다. 이 마음을 오래 간직하게 도와주세요.”",
+            en: "“Lord, thank you for this joy. Help me keep it.”"
+          }
+        },
+        {
+          title: { ko: "나눔으로 마무리", en: "Close by sharing" },
+          text: {
+            ko: "그 기쁨을 나눌 한 사람을 떠올리며 축복하고 ‘아멘’.",
+            en: "Think of one person to share it with, bless them, and close with “Amen.”"
+          }
+        }
+      ]
+    }
   };
+
+  /* The four steps for a given heart; the generic set when none is chosen. */
+  function minuteStepsFor(moodKey) {
+    var set = moodKey ? MINUTE_PRAYER.byMood[moodKey] : null;
+    return set && set.length ? set : MINUTE_PRAYER.steps;
+  }
 
   var DATA = {
     ui: UI,
@@ -704,6 +897,7 @@
     coachThemes: COACH_THEMES,
     coachThemeOrder: ["tired", "anxious", "guilt", "lonely", "grateful", "lost", "sad"],
     minute: MINUTE_PRAYER,
+    minuteStepsFor: minuteStepsFor,
     langs: ["ko", "en"],
     defaults: { lang: "ko", mystery: "joyful", piAmount: 1 }
   };

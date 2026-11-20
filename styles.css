@@ -46,6 +46,10 @@
 
 html, body { height: 100%; }
 
+/* Nothing may push the phone column wider than the screen: a long tagline or a
+   textarea's intrinsic width used to clip the EN toggle and the send button. */
+html, body { max-width: 100%; overflow-x: hidden; }
+
 body {
   margin: 0;
   font-family: var(--font-ui);
@@ -93,7 +97,6 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   overflow: hidden;
   transition: background .45s ease, color .45s ease;
 }
-
 @media (min-width: 760px) {
   body { align-items: center; padding: 28px 0; }
   .phone-frame {
@@ -117,9 +120,12 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line-soft);
   z-index: 5;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; }
+.brand-text { min-width: 0; flex: 1 1 auto; }
 .brand-mark {
   display: grid;
   place-items: center;
@@ -137,7 +143,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 .brand-text p { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.header-actions { display: flex; align-items: center; gap: 8px; }
+.header-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 .streak-pill {
   font-size: 12px; font-weight: 700; color: var(--ink-2);
   background: var(--surface-2);
@@ -158,15 +164,33 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .app-main {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   padding: 18px 18px 26px;
   scrollbar-width: none;
 }
 .app-main::-webkit-scrollbar { display: none; }
 
-.view { display: none; }
+.view { display: none; max-width: 100%; min-width: 0; }
 .view.is-active { display: block; animation: rise .28s cubic-bezier(.2, .7, .3, 1) both; }
+
+/* The coach owns its own scroll area: the thread scrolls and the composer sits
+   below it, so no reply can slip underneath the input row. */
+.app-main.is-coach {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+.app-main.is-coach .view.is-active {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  animation: rise .28s cubic-bezier(.2, .7, .3, 1) both;
+}
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(8px); }
@@ -499,6 +523,15 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 
 /* ------------------------------------------------------------------- coach */
 .coach-thread { display: grid; gap: 10px; margin-bottom: 14px; min-height: 120px; }
+#view-coach .coach-thread {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
 .thread-empty { font-size: 13px; color: var(--muted); text-align: center; padding: 24px 8px; }
 
 .bubble-user {
@@ -542,7 +575,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 .verse-box .v-text { font-family: var(--font-serif); font-size: 13.5px; line-height: 1.75; }
 .verse-box .v-ref { font-size: 11px; color: var(--muted); font-weight: 700; margin-top: 6px; }
-.reply-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 13px; }
+.reply-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 13px; flex-wrap: wrap; }
 .reply-actions .btn { min-height: 42px; font-size: 13px; border-radius: 12px; padding: 0 14px; }
 .reply-mystery { font-size: 11px; color: var(--muted); line-height: 1.5; }
 
@@ -556,6 +589,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 @keyframes blink { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
 
 .coach-chips { display: flex; gap: 7px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: none; }
+#view-coach .coach-chips { flex: 0 0 auto; }
 .coach-chips::-webkit-scrollbar { display: none; }
 .quick-chip {
   flex: 0 0 auto;
@@ -572,11 +606,21 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   position: sticky;
   bottom: 0;
   display: flex; align-items: flex-end; gap: 8px;
+  width: 100%;
+  max-width: 100%;
   padding: 8px 0 2px;
   background: linear-gradient(180deg, transparent, var(--bg) 40%);
 }
+#view-coach .composer {
+  position: static;
+  flex: 0 0 auto;
+  padding: 8px 0 calc(10px + env(safe-area-inset-bottom, 0px));
+  background: none;
+}
 .composer textarea {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
   min-height: 46px; max-height: 120px;
   resize: none;
   padding: 12px 14px;
@@ -590,6 +634,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .send-btn {
   flex: 0 0 auto;
   width: 46px; height: 46px;
+  max-width: 100%;
   border-radius: 15px;
   display: grid; place-items: center;
   font-size: 18px; font-weight: 800;
@@ -772,9 +817,14 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 
 .sheet {
   width: 100%; max-width: 430px;
+  max-height: 88vh;
+  max-height: 88dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background: var(--bg);
   border-radius: 28px 28px 0 0;
-  padding: 10px 20px calc(22px + env(safe-area-inset-bottom, 0px));
+  padding: 8px 20px calc(18px + env(safe-area-inset-bottom, 0px));
   box-shadow: 0 -20px 50px -20px rgba(0, 0, 0, .5);
   animation: slideUp .3s cubic-bezier(.2, .8, .3, 1) both;
 }
@@ -785,19 +835,31 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 @keyframes slideUp { from { transform: translateY(28px); opacity: .6; } to { transform: none; opacity: 1; } }
 
-.sheet-grab { width: 38px; height: 4px; border-radius: 999px; background: var(--line); margin: 0 auto 12px; }
-.sheet-head { display: flex; align-items: center; justify-content: space-between; }
-.sheet-head h3 { font-size: 16px; font-weight: 800; }
-.breath-wrap { display: grid; place-items: center; padding: 16px 0 8px; }
+.sheet-grab { width: 38px; height: 4px; border-radius: 999px; background: var(--line); margin: 0 auto 10px; flex: 0 0 auto; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.sheet-title { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; }
+.sheet-head h3 { font-size: 16px; font-weight: 800; white-space: nowrap; }
+.minute-for {
+  font-size: 11px; font-weight: 800; letter-spacing: -.01em;
+  color: var(--violet-strong);
+  background: var(--violet-soft);
+  border: 1px solid color-mix(in srgb, var(--violet) 24%, transparent);
+  padding: 3px 8px; border-radius: 999px;
+  white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.minute-for[hidden] { display: none; }
+.breath-wrap { display: grid; place-items: center; padding: 12px 0 6px; }
 .breath-ring {
-  width: 148px; height: 148px;
+  width: 132px; height: 132px;
   border-radius: 50%;
   display: grid; place-items: center;
-  font-size: 26px; font-weight: 800; letter-spacing: -.02em;
+  font-size: 25px; font-weight: 800; letter-spacing: -.02em;
   color: var(--violet-strong);
   background: radial-gradient(circle, rgba(100, 68, 159, .17), rgba(135, 92, 29, .06) 70%, transparent);
   border: 1px solid color-mix(in srgb, var(--violet) 25%, transparent);
   font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
 }
 .breath-ring.is-breathing { animation: breathe 8s ease-in-out infinite; }
 @keyframes breathe {
@@ -805,8 +867,17 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   50% { transform: scale(1.04); box-shadow: 0 0 0 18px rgba(100, 68, 159, 0); }
 }
 .minute-step { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); text-align: center; }
-.minute-text { font-family: var(--font-serif); font-size: 15.5px; line-height: 1.85; text-align: center; color: var(--ink-2); margin: 8px 4px 18px; min-height: 84px; }
+.minute-text { font-family: var(--font-serif); font-size: 15px; line-height: 1.8; text-align: center; color: var(--ink-2); margin: 6px 4px 14px; min-height: 0; }
 .sheet-actions { display: grid; gap: 8px; }
+
+/* Short phones (and a browser toolbar taking its share): keep the whole sheet —
+   “마치기” included — inside 88dvh by tightening the breathing room. */
+@media (max-height: 720px) {
+  .breath-wrap { padding: 6px 0 4px; }
+  .breath-ring { width: 104px; height: 104px; font-size: 21px; }
+  .minute-text { font-size: 14.5px; line-height: 1.7; margin: 4px 2px 12px; }
+  .sheet-head h3 { font-size: 15px; }
+}
 
 /* ------------------------------------------------------------------- toast */
 .toast {
@@ -830,9 +901,14 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 /* -------------------------------------------------------------- small tweaks */
 @media (max-width: 360px) {
   .app-main { padding: 14px 14px 22px; }
+  .app-main.is-coach { padding-bottom: 0; }
   .hero h2 { font-size: 21px; }
   .prayer-text { font-size: 15.5px; }
   .chip-btn { font-size: 11px; }
+  .app-header { padding: 12px 14px 10px; }
+  .sheet { padding-left: 16px; padding-right: 16px; }
+  .composer textarea { padding: 11px 12px; }
+  .send-btn { width: 44px; height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

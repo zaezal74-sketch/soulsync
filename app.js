@@ -113,7 +113,7 @@
       "routineFeedback", "piModeBadge", "piUserLine", "piConnectBtn", "piLogoutBtn",
       "piAmountChips", "piMemo", "piOfferBtn", "piStatus", "piRecentList",
       "solidCount", "solidMine", "resetDataBtn", "minuteSheet", "minuteTitle",
-      "minuteClose", "breathRing", "minuteTime", "minuteStep", "minuteText",
+      "minuteClose", "breathRing", "minuteTime", "minuteStep", "minuteText", "minuteFor",
       "minuteStartBtn", "minuteDoneBtn", "toast", "tabbar"
     ].forEach(function (id) { el[id] = $(id); });
   }
@@ -589,10 +589,28 @@
   }
 
   /* ---------------------------------------------------------------- minute */
+  // The 1-minute prayer follows today's heart: six four-step sets live in
+  // data.js, one per mood, with the shared steps as the fallback.
+  function minuteSteps() {
+    var steps = D.minuteStepsFor ? D.minuteStepsFor(todayMood()) : null;
+    return steps && steps.length ? steps : D.minute.steps;
+  }
+
+  function minuteMoodEntry() {
+    var key = todayMood();
+    if (!key) return null;
+    var found = null;
+    D.moods.forEach(function (m) { if (m.key === key) found = m; });
+    return found;
+  }
+
   function renderMinute() {
-    var steps = D.minute.steps;
+    var steps = minuteSteps();
     var idx = Math.min(steps.length - 1, Math.floor(minute.elapsed / (D.minute.seconds / steps.length)));
     var step = steps[idx];
+    var mood = minuteMoodEntry();
+    el.minuteFor.hidden = !mood;
+    el.minuteFor.textContent = mood ? mood.emoji + " " + L(mood.label) : "";
     if (minute.finished) {
       el.minuteStep.textContent = t("minute.doneTitle");
       el.minuteText.textContent = t("minute.doneBody");
@@ -644,7 +662,7 @@
         return;
       }
       renderMinute();
-      var steps = D.minute.steps;
+      var steps = minuteSteps();
       var stage = Math.floor(minute.elapsed / (D.minute.seconds / steps.length));
       var prevStage = Math.floor((minute.elapsed - 1) / (D.minute.seconds / steps.length));
       if (stage !== prevStage) speakMinute();
@@ -656,7 +674,7 @@
     if (!state.settings.voice) return;
     if (!window.speechSynthesis) return;
     try {
-      var steps = D.minute.steps;
+      var steps = minuteSteps();
       var idx = Math.min(steps.length - 1, Math.floor(minute.elapsed / (D.minute.seconds / steps.length)));
       window.speechSynthesis.cancel();
       var u = new SpeechSynthesisUtterance(steps[idx].text[lang]);
@@ -747,9 +765,12 @@
   function scrollThread() {
     // Never yank another screen to the bottom just because the coach re-rendered.
     if (activeTab !== "coach") return;
-    if (el.appMain) {
-      requestAnimationFrame(function () { el.appMain.scrollTop = el.appMain.scrollHeight; });
-    }
+    requestAnimationFrame(function () {
+      // On mobile the thread itself scrolls (the composer sits below it); keep
+      // both cases working so an older layout cannot hide a new reply.
+      if (el.coachThread) el.coachThread.scrollTop = el.coachThread.scrollHeight;
+      if (el.appMain) el.appMain.scrollTop = el.appMain.scrollHeight;
+    });
   }
 
   function sendCoach(text) {
@@ -1012,7 +1033,9 @@
       if (on) tabs[j].setAttribute("aria-current", "page");
       else tabs[j].removeAttribute("aria-current");
     }
+    el.appMain.classList.toggle("is-coach", name === "coach");
     el.appMain.scrollTop = 0;
+    el.coachThread.scrollTop = 0;
     if (name === "routine") {
       el.bestValue.textContent = state.best;
       renderRoutine();
@@ -1200,6 +1223,8 @@
     advanceRosary: advanceRosary,
     startAuto: startAuto,
     stopAuto: stopAuto,
+    minuteSteps: minuteSteps,
+    openMinute: openMinute,
     renderAll: renderAll,
     rosary: function () { return rosary; }
   };
