@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoulSync · mobile render</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #ece3fb; }
+  iframe { position: absolute; top: 0; left: 0; height: 844px; border: 0; display: block; background: #ece3fb; }
+</style>
+</head>
+<body>
+<iframe id="f" src="./index.html" title="SoulSync mobile render"></iframe>
+<script>
+  var q = new URLSearchParams(location.search);
+  var f = document.getElementById("f");
+  f.style.width = (q.get("w") || "390") + "px";
+  if (q.get("v")) f.src = "./index.html?v=" + q.get("v");
+  f.addEventListener("load", function () {
+    var w = f.contentWindow;
+    if (q.get("v")) {
+      var link = w.document.querySelector('link[rel="stylesheet"]');
+      if (link) link.href = "./styles.css?v=" + q.get("v");
+    }
+    if (q.get("tab")) w.SoulSync.switchTab(q.get("tab"));
+    if (q.get("gender")) {
+      var g = w.document.querySelector('[data-gender="' + q.get("gender") + '"]');
+      if (g) g.click();
+    }
+    if (q.get("voice") === "1") {
+      var v = w.document.getElementById("voiceBtn");
+      if (v && v.getAttribute("aria-pressed") !== "true") v.click();
+    }
+    if (q.get("pace")) {
+      var p = w.document.querySelector('[data-pace="' + q.get("pace") + '"]');
+      if (p) p.click();
+    }
+  });
+</script>
+</body>
+</html>
