@@ -494,6 +494,8 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .prayer-text {
   font-family: var(--font-serif);
   white-space: pre-line;
+  word-break: keep-all;
+  overflow-wrap: break-word;
   font-size: 16.5px;
   line-height: 1.85;
   letter-spacing: -.005em;
