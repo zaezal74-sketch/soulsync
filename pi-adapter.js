@@ -131,6 +131,7 @@
     mode: "demo",           // "pi" | "demo"          (sign-in + overall behaviour)
     paymentMode: "demo",    // "pi" | "demo"          (whether Pi.createPayment is used)
     backend: "unknown",     // "unknown" | "live" | "missing"
+    backendDetail: null,    // why: "live" | "missing" (404/405/HTML) | "network" | "error"
     notice: null,           // "no_backend" | "demo_auth" | "sdk_error" | null
     authError: null,
     config: CONFIG,
@@ -226,7 +227,18 @@
         .then(function (res) {
           var live = res.kind === "live";
           self.backend = live ? "live" : "missing";
-          if (!live && self.mode === "pi") self._setPaymentMode("demo", "no_backend");
+          self.backendDetail = res.kind;
+          if (self.mode === "pi") {
+            if (live) {
+              // A later check found the server: go back to real payments.
+              var back = self.paymentMode !== "pi";
+              self.paymentMode = "pi";
+              self.notice = null;
+              if (back && self._onChange) self._onChange(self.mode);
+            } else {
+              self._setPaymentMode("demo", "no_backend");
+            }
+          }
           return self.backend;
         });
       return self._backendPromise;
@@ -236,7 +248,14 @@
       var self = this;
       if (!CONFIG.demoFallback) return Promise.resolve(true);
       if (self.backend === "live") return Promise.resolve(true);
-      if (self.backend === "missing") return Promise.resolve(false);
+      if (self.backend === "missing") {
+        // A 404/405 is final. A network/CORS failure may have been a blip, so
+        // give the server one more chance when the user actually offers.
+        if (self.backendDetail === "missing" || self.backendDetail === "live") {
+          return Promise.resolve(false);
+        }
+        return self.checkBackend(true).then(function (state) { return state === "live"; });
+      }
       return self.checkBackend().then(function (state) { return state === "live"; });
     },
 
