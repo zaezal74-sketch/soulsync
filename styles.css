@@ -8,7 +8,7 @@
 :root {
   --bg: #f7f3fd;
   --bg-soft: #f1eafa;
-  --bg-grad: linear-gradient(180deg, #fcf9ff 0%, #f7f3fd 44%, #f0e9fb 100%);
+  --bg-grad: linear-gradient(180deg, #faf6ff 0%, #f5effc 42%, #ece3f8 100%);
   --surface: #ffffff;
   --surface-2: #f5f0fd;
   --ink: #241c3a;
@@ -243,7 +243,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 
 .message-card {
   background:
-    linear-gradient(165deg, rgba(123, 95, 186, .09), rgba(150, 112, 42, .05) 70%, transparent),
+    linear-gradient(165deg, rgba(107, 79, 163, .11), rgba(107, 79, 163, .03) 70%, transparent),
     var(--surface);
   border-color: color-mix(in srgb, var(--violet) 16%, var(--line));
 }
