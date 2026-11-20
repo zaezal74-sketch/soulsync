@@ -532,6 +532,45 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 @keyframes tapFlash { from { opacity: 1; } to { opacity: 0; } }
 
 .rosary-controls { display: flex; gap: 7px; margin-top: 12px; }
+
+/* Voice options: folded away until voice guidance is on, then unfolded softly
+   so the prayer card stays calm at rest. */
+.voice-panel {
+  display: grid; gap: 7px;
+  margin-top: 9px;
+  padding: 9px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.voice-panel[hidden] { display: none; }
+.voice-panel.is-open { animation: voice-unfold .26s ease both; }
+@keyframes voice-unfold {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: none; }
+}
+.voice-row { display: flex; align-items: center; gap: 8px; }
+.voice-label { flex: 0 0 auto; min-width: 34px; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.voice-seg { display: flex; flex: 1 1 auto; gap: 5px; min-width: 0; }
+.vseg {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 12px; font-weight: 700; color: var(--ink-2);
+  white-space: nowrap;
+  transition: all .18s ease;
+}
+.vseg[aria-pressed="true"] {
+  background: var(--violet-soft);
+  border-color: color-mix(in srgb, var(--violet) 34%, transparent);
+  color: var(--violet-strong);
+  box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--violet) 30%, transparent);
+}
+.vseg:active { transform: scale(.97); }
 .card-note { font-size: 11px; color: var(--muted); line-height: 1.6; margin-top: 11px; }
 
 .done-card { text-align: center; border-color: color-mix(in srgb, var(--gold) 40%, var(--line)); background: linear-gradient(180deg, var(--gold-soft), var(--surface)); }
@@ -975,6 +1014,8 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   .hero h2 { font-size: 21px; }
   .prayer-text { font-size: 15.5px; }
   .chip-btn { font-size: 11px; }
+  .vseg { font-size: 11px; min-height: 30px; padding: 0 5px; }
+  .voice-label { min-width: 30px; font-size: 11px; }
   .app-header { padding: 12px 14px 10px; }
   .sheet { padding-left: 16px; padding-right: 16px; }
   .composer textarea { padding: 11px 12px; }

@@ -53,7 +53,7 @@
       routine: {},
       coach: [],
       pi: { connected: false, username: null, offerings: [], mine: 0 },
-      settings: { voice: false, focus: false },
+      settings: { voice: false, voiceGender: "female", voicePace: "slow", focus: false },
       rosary: { mystery: "joyful" },
       best: 0
     };
@@ -79,6 +79,14 @@
       merged.pi.offerings = Array.isArray(merged.pi.offerings) ? merged.pi.offerings : [];
       if (D.langs.indexOf(merged.lang) === -1) merged.lang = "ko";
       if (!D.mysteries[merged.rosary.mystery]) merged.rosary.mystery = "joyful";
+      // Voice choices: keep an older save working, and never let a stale value
+      // through to the speech profile.
+      if (merged.settings.voiceGender !== "female" && merged.settings.voiceGender !== "male") {
+        merged.settings.voiceGender = "female";
+      }
+      if (["slow", "normal", "fast"].indexOf(merged.settings.voicePace) === -1) {
+        merged.settings.voicePace = "slow";
+      }
       return merged;
     } catch (err) {
       return base;
@@ -107,7 +115,8 @@
       "todoList", "todoProgress", "todoHint", "startPrayerBtn", "startRosaryBtn",
       "mysteryTabs", "rosaryRecNote", "mysteryStrip", "decadeDots", "rosaryStepInfo",
       "beads", "prayerLabel", "beadCounter", "prayerText", "stepProgress", "beadBtn",
-      "beadBtnLabel", "autoBtn", "voiceBtn", "resetBtn", "focusBtn", "rosaryDone",
+      "beadBtnLabel", "autoBtn", "voiceBtn", "voicePanel", "voiceGender", "voicePace",
+      "resetBtn", "focusBtn", "rosaryDone",
       "doneAgainBtn", "doneRoutineBtn", "coachThread", "coachChips", "coachInput",
       "coachSend", "streakValue", "bestValue", "weekGrid", "routineTodayList",
       "routineFeedback", "piModeBadge", "piUserLine", "piConnectBtn", "piLogoutBtn",
@@ -422,8 +431,32 @@
     el.voiceBtn.innerHTML = state.settings.voice
       ? '<span aria-hidden="true">🔊</span> <span>' + t("rosary.voiceOn") + "</span>"
       : '<span aria-hidden="true">🔈</span> <span>' + t("rosary.voiceOff") + "</span>";
+
+    // The voice options unfold only while guidance is on, so the prayer card
+    // stays quiet at rest.
+    var voiceOn = !!state.settings.voice;
+    el.voicePanel.hidden = !voiceOn;
+    if (voiceOn !== voicePanelOpen) {
+      voicePanelOpen = voiceOn;
+      if (voiceOn) {
+        el.voicePanel.classList.remove("is-open");
+        void el.voicePanel.offsetWidth; // restart the unfold animation
+        el.voicePanel.classList.add("is-open");
+      }
+    }
+    markSeg(el.voiceGender, "data-gender", state.settings.voiceGender);
+    markSeg(el.voicePace, "data-pace", state.settings.voicePace);
+
     el.focusBtn.setAttribute("aria-pressed", state.settings.focus ? "true" : "false");
     el.phoneFrame.classList.toggle("focus-mode", !!state.settings.focus);
+  }
+
+  function markSeg(group, attr, value) {
+    if (!group) return;
+    var btns = group.querySelectorAll("[" + attr + "]");
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].setAttribute("aria-pressed", btns[i].getAttribute(attr) === value ? "true" : "false");
+    }
   }
 
   function advanceRosary(manual) {
@@ -460,19 +493,46 @@
   }
 
   /* ------------------------------------------------------------ voice/chime */
-  // A quiet, low register for prayer: lowered pitch, an unhurried pace and a
-  // warm voice where the device offers one.
-  var VOICE = {
-    rosary: { rate: 0.9, pitch: 0.8 },
-    minute: { rate: 0.9, pitch: 0.8 }
+  // A quiet register for prayer. The reader picks the voice's gender and the
+  // pace; both live in settings, so an evening prayer keeps the same voice.
+  //
+  // When the device offers a voice of the chosen gender we use it and only
+  // shade the pitch. When it offers a single ungendered voice (most Korean
+  // phones), the pitch is the only lever left, so the two choices pull clearly
+  // apart: a calm female register against a deep male one.
+  var VOICE_PITCH = {
+    female: { matched: 0.98, single: 0.90 },
+    male: { matched: 0.84, single: 0.70 }
+  };
+  var VOICE_PACE = {
+    slow: { rate: 0.80, factor: 1.25 },
+    normal: { rate: 0.92, factor: 1.08 },
+    fast: { rate: 1.06, factor: 0.94 }
+  };
+  var VOICE_GENDER = { female: true, male: true };
+  // Name hints for the device's voice list. \b keeps "female" from reading as
+  // "male", and "woman" as "man".
+  var GENDER_HINT = {
+    female: /\bfemale\b|\bwoman\b|\bgirl\b|yuna|sora|sunhi|heami|jimin|seoyeon|jiyeon|nara\b|hyeri|jiwoo|samantha|serena|victoria|karen|moira|tessa|zira|jenny|aria\b|emma|\bava\b|allison|susan/,
+    male: /\bmale\b|\bman\b|\bboy\b|daniel|arthur|\binho\b|minjun|jihoon|jaeho|junho|seongjin|\bfred\b|\btom\b|aaron|\bguy\b|ryan|brian|matthew|david|\bmark\b|george|james/
   };
 
-  var pickedVoice = { ko: null, en: null };
+  var pickedVoice = {}; // "ko:female" → SpeechSynthesisVoice
   var voiceHooked = false;
   var liveUtterance = null; // keep a reference; some browsers drop unreferenced speech
+  var voicePanelOpen = false;
 
-  // Choose the most natural, calm voice among those the device offers.
-  function calmVoice(code) {
+  function voiceGenderOf(v) {
+    if (!v) return null;
+    var name = ((v.name || "") + " " + (v.voiceURI || "")).toLowerCase();
+    if (GENDER_HINT.female.test(name)) return "female";
+    if (GENDER_HINT.male.test(name)) return "male";
+    return null;
+  }
+
+  // Choose the calmest voice of the requested gender among those the device
+  // offers.
+  function bestVoice(code, gender) {
     var synth = window.speechSynthesis;
     var all = synth && synth.getVoices ? synth.getVoices() : [];
     if (!all || !all.length) return null;
@@ -489,15 +549,18 @@
       if (/yuna|sora|sunhi|heami|jimin|samantha|serena|daniel|arthur|moira/.test(name)) s += 2;
       if (/compact|espeak|pico|festival|robot/.test(name)) s -= 6;
       if (v.localService) s += 0.5; // keeps working offline
+      var g = voiceGenderOf(v);
+      if (g && g === gender) s += 3; // the chosen gender beats a merely smoother voice
+      else if (g) s -= 3;
       return s;
     }
     pool.sort(function (a, b) { return score(b) - score(a); });
     return pool[0] || null;
   }
 
-  function pickVoice(code) {
-    var key = code.slice(0, 2).toLowerCase() === "ko" ? "ko" : "en";
-    if (!pickedVoice[key]) pickedVoice[key] = calmVoice(code);
+  function pickVoice(code, gender) {
+    var key = code.slice(0, 2).toLowerCase() + ":" + gender;
+    if (!(key in pickedVoice)) pickedVoice[key] = bestVoice(code, gender);
     return pickedVoice[key];
   }
 
@@ -506,19 +569,42 @@
   function prepareVoices() {
     var synth = window.speechSynthesis;
     if (!synth || typeof synth.getVoices !== "function") return;
-    pickVoice(lang === "ko" ? "ko-KR" : "en-US");
+    pickVoice(locale(), state.settings.voiceGender);
     if (voiceHooked || typeof synth.addEventListener !== "function") return;
     voiceHooked = true;
     synth.addEventListener("voiceschanged", function () {
-      pickedVoice.ko = null;
-      pickedVoice.en = null;
-      pickVoice(lang === "ko" ? "ko-KR" : "en-US");
+      pickedVoice = {};
+      pickVoice(locale(), state.settings.voiceGender);
     });
+  }
+
+  // The one place the chosen gender and pace become an utterance, so the rosary
+  // and the 1-minute prayer always read with the same voice.
+  function voiceProfile() {
+    var gender = state.settings.voiceGender === "male" ? "male" : "female";
+    var paceKey = VOICE_PACE[state.settings.voicePace] ? state.settings.voicePace : "slow";
+    var pace = VOICE_PACE[paceKey];
+    var v = pickVoice(locale(), gender);
+    var matched = voiceGenderOf(v) === gender;
+    return {
+      gender: gender,
+      pace: paceKey,
+      rate: pace.rate,
+      pitch: matched ? VOICE_PITCH[gender].matched : VOICE_PITCH[gender].single,
+      voice: v || null,
+      matched: matched
+    };
+  }
+
+  // Slow reading should also leave more room before the next bead comes.
+  function paceFactor() {
+    var pace = VOICE_PACE[state.settings.voicePace] || VOICE_PACE.slow;
+    return pace.factor;
   }
 
   function say(text, profile) {
     try {
-      var code = lang === "ko" ? "ko-KR" : "en-US";
+      var code = locale();
       prepareVoices();
       window.speechSynthesis.cancel();
       var u = new SpeechSynthesisUtterance(text);
@@ -526,7 +612,7 @@
       u.rate = profile.rate;
       u.pitch = profile.pitch;
       u.volume = 0.95;
-      var v = pickVoice(code);
+      var v = profile.voice || pickVoice(code, profile.gender);
       if (v) u.voice = v;
       liveUtterance = u;
       window.speechSynthesis.speak(u);
@@ -544,7 +630,7 @@
     }
     var data = currentPrayerData();
     if (!data) return;
-    say(data.text, VOICE.rosary);
+    say(data.text, voiceProfile());
   }
 
   function stopSpeech() {
@@ -599,8 +685,13 @@
   /* -------------------------------------------------------------- auto flow */
   function beginStepTimer() {
     var data = currentPrayerData();
+    var factor = paceFactor();
     var seconds = data ? data.seconds : DECADE_SECONDS;
-    if (state.settings.voice) seconds = Math.max(seconds, Math.min(28, Math.round(data.text.length / 9)));
+    if (state.settings.voice) {
+      var spoken = Math.round(data.text.length / 9 * factor);
+      seconds = Math.max(seconds, Math.min(34, spoken));
+    }
+    seconds = Math.max(3, Math.round(seconds * factor * 10) / 10);
     auto.elapsed = 0;
     auto.duration = seconds * 1000;
   }
@@ -671,6 +762,25 @@
     save();
     buzz(8);
     renderRosary();
+  }
+
+  function setVoiceGender(gender) {
+    if (!VOICE_GENDER[gender] || state.settings.voiceGender === gender) return;
+    state.settings.voiceGender = gender;
+    save();
+    buzz(8);
+    renderRosary();
+    if (state.settings.voice) speakCurrent(); // hear the change right away
+  }
+
+  function setVoicePace(pace) {
+    if (!VOICE_PACE[pace] || state.settings.voicePace === pace) return;
+    state.settings.voicePace = pace;
+    save();
+    buzz(8);
+    if (auto.on) beginStepTimer(); // the running session follows the new pace
+    renderRosary();
+    if (state.settings.voice) speakCurrent();
   }
 
   /* ---------------------------------------------------------------- minute */
@@ -760,7 +870,7 @@
     if (!window.speechSynthesis) return;
     var steps = minuteSteps();
     var idx = Math.min(steps.length - 1, Math.floor(minute.elapsed / (D.minute.seconds / steps.length)));
-    say(steps[idx].text[lang], VOICE.minute);
+    say(steps[idx].text[lang], voiceProfile());
   }
 
   function finishMinute(completed) {
@@ -1203,6 +1313,14 @@
 
     el.autoBtn.addEventListener("click", toggleAuto);
     el.voiceBtn.addEventListener("click", toggleVoice);
+    el.voiceGender.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-gender]");
+      if (b) setVoiceGender(b.getAttribute("data-gender"));
+    });
+    el.voicePace.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-pace]");
+      if (b) setVoicePace(b.getAttribute("data-pace"));
+    });
     el.focusBtn.addEventListener("click", toggleFocus);
     el.resetBtn.addEventListener("click", resetRosary);
     el.doneAgainBtn.addEventListener("click", function () {
@@ -1305,6 +1423,10 @@
     minuteSteps: minuteSteps,
     openMinute: openMinute,
     renderAll: renderAll,
+    voiceProfile: voiceProfile,
+    setVoiceGender: setVoiceGender,
+    setVoicePace: setVoicePace,
+    autoDuration: function () { return auto.duration; },
     rosary: function () { return rosary; }
   };
 })();

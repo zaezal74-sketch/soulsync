@@ -123,6 +123,25 @@
           <button class="chip-btn" id="voiceBtn" type="button" aria-pressed="false"><span aria-hidden="true">🔊</span> <span data-i18n="rosary.voiceOff">음성 안내</span></button>
           <button class="chip-btn" id="resetBtn" type="button"><span aria-hidden="true">↺</span> <span data-i18n="rosary.reset">처음부터</span></button>
         </div>
+
+        <!-- Voice options stay folded away until voice guidance is on. -->
+        <div class="voice-panel" id="voicePanel" hidden>
+          <div class="voice-row">
+            <span class="voice-label" data-i18n="rosary.voiceGender">목소리</span>
+            <div class="voice-seg" id="voiceGender" role="group" aria-label="voice">
+              <button class="vseg" type="button" data-gender="female" aria-pressed="true" data-i18n="rosary.voiceFemale">여성</button>
+              <button class="vseg" type="button" data-gender="male" aria-pressed="false" data-i18n="rosary.voiceMale">남성</button>
+            </div>
+          </div>
+          <div class="voice-row">
+            <span class="voice-label" data-i18n="rosary.voicePace">속도</span>
+            <div class="voice-seg" id="voicePace" role="group" aria-label="speed">
+              <button class="vseg" type="button" data-pace="slow" aria-pressed="true" data-i18n="rosary.paceSlow">천천히</button>
+              <button class="vseg" type="button" data-pace="normal" aria-pressed="false" data-i18n="rosary.paceNormal">보통</button>
+              <button class="vseg" type="button" data-pace="fast" aria-pressed="false" data-i18n="rosary.paceFast">빠르게</button>
+            </div>
+          </div>
+        </div>
         <p class="card-note" data-i18n="rosary.note">10알을 마치면 오늘의 묵주기도 1단이 자동으로 기록돼요.</p>
       </article>
 
