@@ -513,8 +513,8 @@
   // Name hints for the device's voice list. \b keeps "female" from reading as
   // "male", and "woman" as "man".
   var GENDER_HINT = {
-    female: /\bfemale\b|\bwoman\b|\bgirl\b|yuna|sora|sunhi|heami|jimin|seoyeon|jiyeon|nara\b|hyeri|jiwoo|samantha|serena|victoria|karen|moira|tessa|zira|jenny|aria\b|emma|\bava\b|allison|susan/,
-    male: /\bmale\b|\bman\b|\bboy\b|daniel|arthur|\binho\b|minjun|jihoon|jaeho|junho|seongjin|\bfred\b|\btom\b|aaron|\bguy\b|ryan|brian|matthew|david|\bmark\b|george|james/
+    female: /\bfemale\b|\bwoman\b|\bgirl\b|여성|여자|yuna|sora|sunhi|heami|jimin|seoyeon|jiyeon|nara\b|hyeri|jiwoo|samantha|serena|victoria|karen|moira|tessa|zira|jenny|aria\b|emma|\bava\b|allison|susan/,
+    male: /\bmale\b|\bman\b|\bboy\b|남성|남자|daniel|arthur|\binho\b|minjun|jihoon|jaeho|junho|seongjin|\bfred\b|\btom\b|aaron|\bguy\b|ryan|brian|matthew|david|\bmark\b|george|james/
   };
 
   var pickedVoice = {}; // "ko:female" → SpeechSynthesisVoice
@@ -550,8 +550,8 @@
       if (/compact|espeak|pico|festival|robot/.test(name)) s -= 6;
       if (v.localService) s += 0.5; // keeps working offline
       var g = voiceGenderOf(v);
-      if (g && g === gender) s += 3; // the chosen gender beats a merely smoother voice
-      else if (g) s -= 3;
+      if (g && g === gender) s += 6; // the chosen gender wins over a merely smoother voice
+      else if (g) s -= 6;
       return s;
     }
     pool.sort(function (a, b) { return score(b) - score(a); });
