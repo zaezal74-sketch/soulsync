@@ -556,16 +556,16 @@
   // inharmonic partials, a soft attack and a long fade — closer to a singing
   // bowl or a distant church bell than to a notification tone.
   var BELL = {
-    decade: { notes: [220.0, 261.63, 329.63], gap: 0.38, decay: 3.4, gain: 0.07 },
-    finish: { notes: [329.63, 261.63, 220.0], gap: 0.4, decay: 4.0, gain: 0.065 },
-    soft: { notes: [220.0], gap: 0, decay: 2.8, gain: 0.05 }
+    decade: { notes: [220.0, 261.63, 329.63], gap: 0.38, decay: 3.4, gain: 0.115 },
+    finish: { notes: [329.63, 261.63, 220.0], gap: 0.4, decay: 4.0, gain: 0.11 },
+    soft: { notes: [220.0], gap: 0, decay: 2.8, gain: 0.085 }
   };
   var BELL_PARTIALS = [
-    { ratio: 0.5, level: 0.18 }, // a little body under the fundamental
+    { ratio: 0.5, level: 0.22 }, // a little body under the fundamental
     { ratio: 1, level: 1 },
-    { ratio: 2.01, level: 0.18 }, // just enough overtone to sound like a bell, kept soft
-    { ratio: 2.98, level: 0.07 },
-    { ratio: 4.16, level: 0.03 }
+    { ratio: 2.01, level: 0.14 }, // just enough overtone to sound like a bell, kept soft
+    { ratio: 2.98, level: 0.05 },
+    { ratio: 4.16, level: 0.02 }
   ];
 
   function chime(kind) {
