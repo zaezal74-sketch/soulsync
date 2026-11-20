@@ -621,19 +621,24 @@
 
   /* ---------------------------------------------------------- prayer audio */
   // Most Android phones (Samsung Internet, KakaoTalk's in-app browser) offer a
-  // single Korean voice through speechSynthesis, so a "male" prayer still came
-  // out in a high, storybook register. These recorded files carry the calm male
-  // voice itself, and an HTMLAudioElement plays them even where speechSynthesis
-  // does not exist at all. Everything else — English, the female voice, or a
-  // file that will not load — falls back to the device voice as before.
+  // single Korean voice through speechSynthesis, so a prayer came out in a
+  // high, storybook register whatever gender was chosen. These recorded files
+  // carry the calm voice itself — one set per gender — and an HTMLAudioElement
+  // plays them even where speechSynthesis does not exist at all. Everything
+  // else — English, or a file that will not load — falls back to the device
+  // voice as before.
   var PRAYER_AUDIO = {
-    dir: "audio/ko-male/",
+    dir: { male: "audio/ko-male/", female: "audio/ko-female/" },
     pace: { slow: 0.95, normal: 1.08, fast: 1.25 }
   };
   var prayerAudio = null; // the <audio> sounding right now
 
   function recordedVoiceOn() {
-    return lang === "ko" && state.settings.voiceGender === "male";
+    return lang === "ko";
+  }
+
+  function prayerAudioDir() {
+    return PRAYER_AUDIO.dir[state.settings.voiceGender] || PRAYER_AUDIO.dir.female;
   }
 
   function prayerAudioRate() {
@@ -672,7 +677,7 @@
   function playRecordedVoice(name, onFail) {
     stopRecordedVoice();
     var a;
-    try { a = new Audio(PRAYER_AUDIO.dir + name + ".mp3"); } catch (e) { return false; }
+    try { a = new Audio(prayerAudioDir() + name + ".mp3"); } catch (e) { return false; }
     if (!a || typeof a.play !== "function") return false;
     // A browser with no MP3 decoder (and a headless one) should read with the
     // device voice rather than fail silently.
