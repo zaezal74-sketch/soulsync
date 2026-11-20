@@ -16,6 +16,10 @@ audio/ko-female/ from the text the app shows. Needs `pip install edge-tts`
 Each voice is slowed to -20% so it reads as a calm prayer rather than a
 newsreader; the pitch is lowered a little further for the male voice so it
 sits under the device's default register.
+
+hailMary.mp3 and ourFather.mp3 are recorded a phrase at a time by
+tools/make-phrase-audio.py, so the prayer breathes at its own commas; do not
+re-record those two with this script.
 """
 import asyncio
 import json
