@@ -18,6 +18,10 @@
   if (q.get("v")) f.src = "./index.html?v=" + q.get("v");
   f.addEventListener("load", function () {
     var w = f.contentWindow;
+    if (q.get("v")) {
+      var link = w.document.querySelector('link[rel="stylesheet"]');
+      if (link) link.href = "./styles.css?v=" + q.get("v");
+    }
     if (q.get("tab")) w.SoulSync.switchTab(q.get("tab"));
     if (q.get("focus") === "1") {
       var frame = w.document.querySelector(".phone-frame");
