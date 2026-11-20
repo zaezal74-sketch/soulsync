@@ -61,9 +61,11 @@ both the Korean community the app was written for and the global Pi community.
   Global Rosary Solidarity counter.
 
 ### 3.3 AI Coach
-- Free-text input plus six quick-start chips ("I'm so worn out today",
-  "My heart is anxious", "I feel lonely"…).
-- The coach reads feeling keywords and answers in a fixed, transparent shape:
+- Free-text input plus seven quick-start chips ("I'm so worn out today",
+  "My heart is anxious", "Something to be thankful for", "Pray for my family"…).
+- The coach reads feeling keywords — tired, anxious, guilty, lonely, **family**
+  (family, parents, children, love, peace, health, intercession, in both
+  languages), grateful, lost, sad — and answers in a fixed, transparent shape:
   **empathy → one-minute action → a verse → the mystery to pray next**.
 - "Pray with me" jumps straight into the Rosary with that mystery selected.
 - The response shape is exactly what a server-side LLM would return, so the
@@ -148,9 +150,9 @@ endpoints and a minimal Node/Express reference implementation are documented in
   padding for notched devices; `prefers-reduced-motion` respected.
 - Accessibility: semantic landmarks, `aria-pressed` toggles, keyboard-operable
   checklist items, visible focus rings, `aria-live` status regions.
-- Local smoke test: 40 checks (engine maths, rendering, mood → mystery mapping,
-  decade recording, KR/EN, coach, Pi demo, 1-minute prayer, the selected mood
-  chip's emphasis, persistence, reset).
+- Local smoke test: 47 checks (engine maths, rendering, mood → mystery mapping,
+  decade recording, KR/EN, coach — including the family theme and chip — Pi demo,
+  1-minute prayer, the selected mood chip's emphasis, persistence, reset).
 
 ---
 

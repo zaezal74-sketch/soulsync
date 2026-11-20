@@ -741,9 +741,9 @@
       });
     }
 
-    // quick chips
+    // quick chips (the list itself lives in coach.js)
     el.coachChips.innerHTML = "";
-    ["coach.chip1", "coach.chip2", "coach.chip3", "coach.chip4", "coach.chip5", "coach.chip6"].forEach(function (key) {
+    (window.SS_COACH.chipKeys || []).forEach(function (key) {
       var c = document.createElement("button");
       c.type = "button";
       c.className = "quick-chip";

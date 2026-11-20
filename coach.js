@@ -20,6 +20,24 @@
       .trim();
   }
 
+  var LATIN = /^[a-z0-9][a-z0-9'\- ]*$/;
+
+  function escapeRe(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  /**
+   * Does this keyword occur in the text?
+   * Korean (and other non-Latin) keywords match as substrings, because 조사 are
+   * glued on ("가족이", "가족을"). Latin keywords must stand as words, so short
+   * ones like "mom", "son" or "love" never fire inside "moment", "person" or
+   * "lovely".
+   */
+  function hasKeyword(text, w) {
+    if (!LATIN.test(w)) return text.indexOf(w) !== -1;
+    return new RegExp("(^|[^a-z0-9])" + escapeRe(w) + "($|[^a-z0-9])").test(text);
+  }
+
   /** Score one theme against the input. Longer (more specific) keywords win. */
   function scoreTheme(text, theme, lang) {
     if (!theme || !theme.keywords) return 0;
@@ -27,13 +45,13 @@
     var score = 0;
     for (var i = 0; i < words.length; i++) {
       var w = String(words[i]).toLowerCase();
-      if (w && text.indexOf(w) !== -1) score += 2 + w.length;
+      if (w && hasKeyword(text, w)) score += 2 + w.length;
     }
     // A little cross-language help: matching either language list is a signal.
     var other = theme.keywords[lang === "ko" ? "en" : "ko"] || [];
     for (var j = 0; j < other.length; j++) {
       var o = String(other[j]).toLowerCase();
-      if (o.length > 3 && text.indexOf(o) !== -1) score += 1;
+      if (o.length > 3 && hasKeyword(text, o)) score += 1;
     }
     return score;
   }
@@ -94,11 +112,26 @@
     return reply;
   }
 
+  /**
+   * Quick-start chips shown under the coach thread. The keys point at the copy
+   * in data.js, so adding a chip is one entry here plus one UI string there.
+   */
+  var CHIP_KEYS = [
+    "coach.chip1",
+    "coach.chip2",
+    "coach.chip3",
+    "coach.chip7",
+    "coach.chip4",
+    "coach.chip5",
+    "coach.chip6"
+  ];
+
   root.SS_COACH = {
     classify: classify,
     respond: respond,
     respondForTheme: respondForTheme,
-    normalize: normalize
+    normalize: normalize,
+    chipKeys: CHIP_KEYS
   };
   if (typeof module !== "undefined" && module.exports) module.exports = root.SS_COACH;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -111,6 +111,7 @@
     "coach.chip4": { ko: "외로워요", en: "I feel lonely" },
     "coach.chip5": { ko: "자꾸 미안한 마음이 들어요", en: "I keep feeling guilty" },
     "coach.chip6": { ko: "어디로 가야 할지 모르겠어요", en: "I don't know where to go" },
+    "coach.chip7": { ko: "가족을 위해 기도하고 싶어요", en: "Pray for my family" },
 
     "routine.title": { ko: "루틴 · Pi", en: "Routine & Pi" },
     "routine.streakLabel": { ko: "연속", en: "Streak" },
@@ -222,8 +223,8 @@
       key: "lonely", emoji: "🌙", mystery: "glorious",
       label: { ko: "외로움", en: "Lonely" },
       message: {
-        ko: "옆이 비어 보이는 저녁이네요. 외로움은 사랑할 곳이 필요하다는 신호예요. 함께 계신다는 말씀 한 줄과 1분 기도로 곁을 만들어 보세요.",
-        en: "The evening feels empty beside you. Loneliness is a sign that your heart has love to give. Take one line of Scripture and one minute of prayer, and let that be company."
+        ko: "마음 한쪽이 허전한 순간이네요. 외로움은 사랑할 곳이 필요하다는 신호예요. 함께 계신다는 말씀 한 줄과 1분 기도로 곁을 만들어 보세요.",
+        en: "A part of your heart feels empty right now. Loneliness is a sign that your heart has love to give. Take one line of Scripture and one minute of prayer, and let that be company."
       }
     },
     {
@@ -508,6 +509,13 @@
         en: "“The Lord is close to the brokenhearted and saves those who are crushed in spirit.”"
       }
     },
+    blessing: {
+      ref: { ko: "민수기 6,24-26", en: "Numbers 6:24-26" },
+      text: {
+        ko: "“주님께서 당신을 축복하시고 지켜 주시기를. 주님께서 당신에게 당신의 얼굴을 비추시고 당신에게 은총을 베푸시기를. 주님께서 당신에게 당신의 얼굴을 들어 보이시고 당신에게 평화를 주시기를.”",
+        en: "“The Lord bless you and keep you; the Lord make his face shine on you and be gracious to you; the Lord turn his face toward you and give you peace.”"
+      }
+    },
     thanks: {
       ref: { ko: "1코린토 10,31", en: "1 Corinthians 10:31" },
       text: {
@@ -587,8 +595,8 @@
         en: ["lonely", "alone", "isolated", "empty", "no one", "miss someone"]
       },
       empathy: {
-        ko: "혼자인 저녁은 마음이 유난히 크게 들리는 시간이에요. 외로움은 사랑할 곳이 있다는 뜻이기도 합니다.",
-        en: "An evening alone makes the heart sound louder. Loneliness also means there is love in you with somewhere to go."
+        ko: "혼자인 시간은 마음이 유난히 크게 들리는 때예요. 외로움은 사랑할 곳이 있다는 뜻이기도 합니다.",
+        en: "Time alone makes the heart sound louder. Loneliness also means there is love in you with somewhere to go."
       },
       action: {
         ko: "지금 떠오르는 한 사람에게 짧은 안부를 보내 보세요. 그리고 그 사람을 위해 10초만 기도해 주세요.",
@@ -596,6 +604,22 @@
       },
       verse: "lonely",
       mystery: "glorious"
+    },
+    family: {
+      keywords: {
+        ko: ["가족", "가정", "부모", "어머니", "아버지", "엄마", "아빠", "아이", "아들", "딸", "자녀", "남편", "아내", "부부", "형제", "자매", "손주", "며느리", "사위", "중보", "우리 집", "집안", "사랑", "평화", "건강"],
+        en: ["family", "families", "parents", "parent", "mother", "father", "mom", "mum", "dad", "son", "daughter", "children", "child", "kids", "spouse", "husband", "wife", "sibling", "brother", "sister", "grandchild", "intercede", "intercession", "household", "my home", "love", "loved", "loving", "peace", "peaceful", "health", "healthy"]
+      },
+      empathy: {
+        ko: "가족이 마음에 가득하네요. 가까운 사이일수록 마음이 잘 닿지 않아 애가 타기도 하지요. 그 마음을 그대로 주님께 가져가면 혼자 꾹 안고 있지 않아도 됩니다.",
+        en: "Your family is on your heart today. The closer people are, the more it can ache when words do not reach. Bring that love to the Lord as it is — you do not have to hold it alone."
+      },
+      action: {
+        ko: "가족 중 한 사람의 이름을 소리 내어 부르고, 그 사람에게 지금 필요한 것 하나를 떠올려 보세요. 그다음 1분 동안 그 이름을 마음에 두고 기도해 보세요.",
+        en: "Say the name of one family member out loud, then name one thing they need right now. Keep that name in your heart and pray for one minute."
+      },
+      verse: "blessing",
+      mystery: "joyful"
     },
     grateful: {
       keywords: {
@@ -837,8 +861,8 @@
         {
           title: { ko: "짧은 기도", en: "A short prayer" },
           text: {
-            ko: "“주님, 제 곁에 계신 것을 알게 해 주세요. 이 저녁을 함께해 주세요.”",
-            en: "“Lord, let me know you are beside me. Stay with me this evening.”"
+            ko: "“주님, 제 곁에 계신 것을 알게 해 주세요. 이 시간을 함께해 주세요.”",
+            en: "“Lord, let me know you are beside me. Stay with me now.”"
           }
         },
         {
@@ -895,7 +919,7 @@
     mysteries: MYSTERIES,
     verses: VERSES,
     coachThemes: COACH_THEMES,
-    coachThemeOrder: ["tired", "anxious", "guilt", "lonely", "grateful", "lost", "sad"],
+    coachThemeOrder: ["tired", "anxious", "guilt", "lonely", "family", "grateful", "lost", "sad"],
     minute: MINUTE_PRAYER,
     minuteStepsFor: minuteStepsFor,
     langs: ["ko", "en"],
