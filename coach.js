@@ -113,8 +113,9 @@
   }
 
   /**
-   * Quick-start chips shown under the coach thread. The keys point at the copy
-   * in data.js, so adding a chip is one entry here plus one UI string there.
+   * Quick-start chips shown at the top of the coach screen, right under the
+   * guidance line. The keys point at the copy in data.js, so adding a chip is
+   * one entry here plus one UI string there.
    */
   var CHIP_KEYS = [
     "coach.chip1",

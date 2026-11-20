@@ -607,16 +607,30 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .typing span:nth-child(3) { animation-delay: .32s; }
 @keyframes blink { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
 
-.coach-chips { display: flex; gap: 7px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: none; }
-#view-coach .coach-chips { flex: 0 0 auto; }
-.coach-chips::-webkit-scrollbar { display: none; }
-.quick-chip {
+/* Quick-start chips sit at the top of the coach screen, right under the
+   guidance line, so a heart can be picked before the thread grows tall. All
+   seven wrap into two or three tidy rows: nothing is cut off or needs a
+   sideways swipe, and the thread keeps the rest of the column. */
+.coach-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 0 12px;
+}
+#view-coach .coach-chips {
   flex: 0 0 auto;
-  padding: 8px 12px;
+  align-content: flex-start;
+}
+.quick-chip {
+  flex: 1 0 auto;
+  max-width: 100%;
+  padding: 7px 10px;
   border-radius: 999px;
   background: var(--surface);
   border: 1px solid var(--line);
-  font-size: 12px; font-weight: 600; color: var(--ink-2);
+  font-size: 11.5px; font-weight: 600; color: var(--ink-2);
+  white-space: nowrap;
+  line-height: 1.35;
   transition: all .16s ease;
 }
 .quick-chip:active { transform: scale(.96); background: var(--violet-soft); }
