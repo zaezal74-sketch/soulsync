@@ -872,6 +872,9 @@
     }
     el.piConnectBtn.hidden = !!state.pi.connected;
     el.piLogoutBtn.hidden = !state.pi.connected;
+    // connectPi leaves "연결 중…" on the button; put the label back whenever the
+    // layer is not connected (failed sign-in, or after disconnecting).
+    if (!state.pi.connected) el.piConnectBtn.textContent = t("pi.connect");
 
     // amounts
     el.piAmountChips.innerHTML = "";
