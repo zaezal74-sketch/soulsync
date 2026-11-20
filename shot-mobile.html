@@ -15,6 +15,7 @@
   var q = new URLSearchParams(location.search);
   var f = document.getElementById("f");
   f.style.width = (q.get("w") || "390") + "px";
+  if (q.get("v")) f.src = "./index.html?v=" + q.get("v");
   f.addEventListener("load", function () {
     var w = f.contentWindow;
     if (q.get("tab")) w.SoulSync.switchTab(q.get("tab"));
