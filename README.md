@@ -222,5 +222,5 @@ node tests/smoke.test.js
 
 ## 8. 만든 사람
 
-권지현 (혀니) — 기획 및 방향 · Pi Next Hackathon 2027
+재잘베니 — 기획 및 방향 · Pi Next Hackathon 2027
 문의: 이 프로토타입을 전달받은 담당자를 통해 연락 주세요.
