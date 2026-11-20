@@ -148,8 +148,9 @@ endpoints and a minimal Node/Express reference implementation are documented in
   padding for notched devices; `prefers-reduced-motion` respected.
 - Accessibility: semantic landmarks, `aria-pressed` toggles, keyboard-operable
   checklist items, visible focus rings, `aria-live` status regions.
-- Local smoke test: 31 checks (engine maths, rendering, mood → mystery mapping,
-  decade recording, KR/EN, coach, Pi demo, 1-minute prayer, persistence, reset).
+- Local smoke test: 40 checks (engine maths, rendering, mood → mystery mapping,
+  decade recording, KR/EN, coach, Pi demo, 1-minute prayer, the selected mood
+  chip's emphasis, persistence, reset).
 
 ---
 
