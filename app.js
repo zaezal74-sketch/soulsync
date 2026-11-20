@@ -460,6 +460,79 @@
   }
 
   /* ------------------------------------------------------------ voice/chime */
+  // A quiet, low register for prayer: lowered pitch, an unhurried pace and a
+  // warm voice where the device offers one.
+  var VOICE = {
+    rosary: { rate: 0.9, pitch: 0.8 },
+    minute: { rate: 0.9, pitch: 0.8 }
+  };
+
+  var pickedVoice = { ko: null, en: null };
+  var voiceHooked = false;
+  var liveUtterance = null; // keep a reference; some browsers drop unreferenced speech
+
+  // Choose the most natural, calm voice among those the device offers.
+  function calmVoice(code) {
+    var synth = window.speechSynthesis;
+    var all = synth && synth.getVoices ? synth.getVoices() : [];
+    if (!all || !all.length) return null;
+    var want = code.slice(0, 2).toLowerCase();
+    var pool = all.filter(function (v) {
+      return (v.lang || "").toLowerCase().indexOf(want) === 0;
+    });
+    if (!pool.length) return null;
+    function score(v) {
+      var name = ((v.name || "") + " " + (v.voiceURI || "")).toLowerCase();
+      var s = 0;
+      if (/natural|neural|premium|enhanced|wavenet/.test(name)) s += 5;
+      if (/google/.test(name)) s += 4; // usually the least robotic on Android/Chrome
+      if (/yuna|sora|sunhi|heami|jimin|samantha|serena|daniel|arthur|moira/.test(name)) s += 2;
+      if (/compact|espeak|pico|festival|robot/.test(name)) s -= 6;
+      if (v.localService) s += 0.5; // keeps working offline
+      return s;
+    }
+    pool.sort(function (a, b) { return score(b) - score(a); });
+    return pool[0] || null;
+  }
+
+  function pickVoice(code) {
+    var key = code.slice(0, 2).toLowerCase() === "ko" ? "ko" : "en";
+    if (!pickedVoice[key]) pickedVoice[key] = calmVoice(code);
+    return pickedVoice[key];
+  }
+
+  // The voice list loads asynchronously on most devices, so re-resolve it once
+  // it arrives and warm it up with a silent utterance.
+  function prepareVoices() {
+    var synth = window.speechSynthesis;
+    if (!synth || typeof synth.getVoices !== "function") return;
+    pickVoice(lang === "ko" ? "ko-KR" : "en-US");
+    if (voiceHooked || typeof synth.addEventListener !== "function") return;
+    voiceHooked = true;
+    synth.addEventListener("voiceschanged", function () {
+      pickedVoice.ko = null;
+      pickedVoice.en = null;
+      pickVoice(lang === "ko" ? "ko-KR" : "en-US");
+    });
+  }
+
+  function say(text, profile) {
+    try {
+      var code = lang === "ko" ? "ko-KR" : "en-US";
+      prepareVoices();
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = code;
+      u.rate = profile.rate;
+      u.pitch = profile.pitch;
+      u.volume = 0.95;
+      var v = pickVoice(code);
+      if (v) u.voice = v;
+      liveUtterance = u;
+      window.speechSynthesis.speak(u);
+    } catch (e) { /* ignore */ }
+  }
+
   function speakCurrent() {
     if (!state.settings.voice) return;
     if (typeof window.speechSynthesis === "undefined") {
@@ -471,14 +544,7 @@
     }
     var data = currentPrayerData();
     if (!data) return;
-    try {
-      window.speechSynthesis.cancel();
-      var u = new SpeechSynthesisUtterance(data.text);
-      u.lang = lang === "ko" ? "ko-KR" : "en-US";
-      u.rate = 0.92;
-      u.pitch = 1;
-      window.speechSynthesis.speak(u);
-    } catch (e) { /* ignore */ }
+    say(data.text, VOICE.rosary);
   }
 
   function stopSpeech() {
@@ -486,27 +552,46 @@
   }
 
   var audioCtx = null;
+  // A warm, low bell instead of a bright ping: a low fundamental, quiet
+  // inharmonic partials, a soft attack and a long fade — closer to a singing
+  // bowl or a distant church bell than to a notification tone.
+  var BELL = {
+    decade: { notes: [220.0, 261.63, 329.63], gap: 0.38, decay: 3.4, gain: 0.07 },
+    finish: { notes: [329.63, 261.63, 220.0], gap: 0.4, decay: 4.0, gain: 0.065 },
+    soft: { notes: [220.0], gap: 0, decay: 2.8, gain: 0.05 }
+  };
+  var BELL_PARTIALS = [
+    { ratio: 0.5, level: 0.18 }, // a little body under the fundamental
+    { ratio: 1, level: 1 },
+    { ratio: 2.01, level: 0.18 }, // just enough overtone to sound like a bell, kept soft
+    { ratio: 2.98, level: 0.07 },
+    { ratio: 4.16, level: 0.03 }
+  ];
+
   function chime(kind) {
     try {
       var Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return;
       if (!audioCtx) audioCtx = new Ctx();
       if (audioCtx.state === "suspended") audioCtx.resume();
-      var notes = kind === "decade" ? [523.25, 659.25, 783.99] : [523.25, 783.99];
+      var spec = BELL[kind] || BELL.soft;
       var now = audioCtx.currentTime;
-      notes.forEach(function (freq, i) {
-        var o = audioCtx.createOscillator();
-        var g = audioCtx.createGain();
-        o.type = "sine";
-        o.frequency.value = freq;
-        var start = now + i * 0.16;
-        g.gain.setValueAtTime(0.0001, start);
-        g.gain.linearRampToValueAtTime(0.09, start + 0.04);
-        g.gain.exponentialRampToValueAtTime(0.0001, start + 1.3);
-        o.connect(g);
-        g.connect(audioCtx.destination);
-        o.start(start);
-        o.stop(start + 1.35);
+      spec.notes.forEach(function (freq, i) {
+        var start = now + i * spec.gap;
+        BELL_PARTIALS.forEach(function (p) {
+          var o = audioCtx.createOscillator();
+          var g = audioCtx.createGain();
+          var fade = spec.decay * (1 - p.level * 0.35);
+          o.type = "sine";
+          o.frequency.value = freq * p.ratio;
+          g.gain.setValueAtTime(0.0001, start);
+          g.gain.linearRampToValueAtTime(spec.gain * p.level, start + 0.03);
+          g.gain.exponentialRampToValueAtTime(0.0001, start + fade);
+          o.connect(g);
+          g.connect(audioCtx.destination);
+          o.start(start);
+          o.stop(start + fade + 0.2);
+        });
       });
     } catch (e) { /* audio is a bonus, never a failure */ }
   }
@@ -673,15 +758,9 @@
   function speakMinute() {
     if (!state.settings.voice) return;
     if (!window.speechSynthesis) return;
-    try {
-      var steps = minuteSteps();
-      var idx = Math.min(steps.length - 1, Math.floor(minute.elapsed / (D.minute.seconds / steps.length)));
-      window.speechSynthesis.cancel();
-      var u = new SpeechSynthesisUtterance(steps[idx].text[lang]);
-      u.lang = lang === "ko" ? "ko-KR" : "en-US";
-      u.rate = 0.9;
-      window.speechSynthesis.speak(u);
-    } catch (e) { /* ignore */ }
+    var steps = minuteSteps();
+    var idx = Math.min(steps.length - 1, Math.floor(minute.elapsed / (D.minute.seconds / steps.length)));
+    say(steps[idx].text[lang], VOICE.minute);
   }
 
   function finishMinute(completed) {
