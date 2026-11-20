@@ -234,11 +234,20 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 .mood-chip .emoji { font-size: 21px; line-height: 1; }
 .mood-chip:active { transform: scale(.96); }
+/* The chosen mood has to read at a glance beside the five white chips: a 2px deep
+   violet border, a 3px lavender halo just outside it, and a soft lavender fill
+   under deeper, heavier text. The 1px padding trim offsets the thicker border, so
+   the chip keeps its size and the grid row does not jump when a mood is picked. */
 .mood-chip.is-selected {
-  border-color: color-mix(in srgb, var(--violet) 45%, transparent);
-  background: linear-gradient(170deg, var(--violet-soft), var(--surface));
+  border: 2px solid var(--violet-strong);
+  padding: 11px 5px 9px;
+  background: linear-gradient(170deg, #f2e9fd 0%, #e6d8f9 100%);
   color: var(--violet-strong);
-  box-shadow: 0 8px 20px -14px rgba(76, 58, 133, .75);
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(84, 56, 152, .14);
+  box-shadow:
+    0 0 0 3px rgba(84, 56, 152, .16),
+    0 10px 22px -14px rgba(70, 49, 127, .6);
 }
 
 /* ------------------------------------------------------------------- cards */
