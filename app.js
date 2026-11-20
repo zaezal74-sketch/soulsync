@@ -1,0 +1,1185 @@
+/* =========================================================================
+   SoulSync — app.js
+   Screen rendering, local persistence, the rosary session, voice/chime, the
+   coach conversation and the Pi layer wiring.
+   ========================================================================= */
+(function () {
+  "use strict";
+
+  var D = window.SS_DATA;
+  var STORE_KEY = "soulsync.v1";
+  var DECADE_SECONDS = 9;
+
+  /* ------------------------------------------------------------- utilities */
+  function $(id) { return document.getElementById(id); }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function dateKey(d) {
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+  function addDays(d, n) {
+    var x = new Date(d.getTime());
+    x.setDate(x.getDate() + n);
+    return x;
+  }
+  function dayOfYear(d) {
+    var start = new Date(d.getFullYear(), 0, 0);
+    return Math.floor((d - start) / 86400000);
+  }
+  function fmt(str, vars) {
+    if (!vars) return str;
+    return String(str).replace(/\{(\w+)\}/g, function (m, k) {
+      return vars[k] !== undefined && vars[k] !== null ? String(vars[k]) : m;
+    });
+  }
+
+  var lang = "ko";
+  function L(obj) {
+    if (obj === null || obj === undefined) return "";
+    if (typeof obj === "string") return obj;
+    return obj[lang] !== undefined ? obj[lang] : obj.ko;
+  }
+  function t(key, vars) {
+    var entry = D.ui[key];
+    return fmt(entry ? L(entry) : key, vars);
+  }
+  function locale() { return lang === "ko" ? "ko-KR" : "en-US"; }
+
+  /* ------------------------------------------------------------------ state */
+  function defaultState() {
+    return {
+      version: 1,
+      lang: "ko",
+      moodByDate: {},
+      routine: {},
+      coach: [],
+      pi: { connected: false, username: null, offerings: [], mine: 0 },
+      settings: { voice: false, focus: false },
+      rosary: { mystery: "joyful" },
+      best: 0
+    };
+  }
+
+  var state = loadState();
+
+  function loadState() {
+    var base = defaultState();
+    try {
+      var raw = window.localStorage.getItem(STORE_KEY);
+      if (!raw) return base;
+      var saved = JSON.parse(raw);
+      if (!saved || typeof saved !== "object") return base;
+      // shallow merge with defaults so old saves keep working
+      var merged = Object.assign({}, base, saved);
+      merged.pi = Object.assign({}, base.pi, saved.pi || {});
+      merged.settings = Object.assign({}, base.settings, saved.settings || {});
+      merged.rosary = Object.assign({}, base.rosary, saved.rosary || {});
+      merged.moodByDate = saved.moodByDate || {};
+      merged.routine = saved.routine || {};
+      merged.coach = Array.isArray(saved.coach) ? saved.coach : [];
+      merged.pi.offerings = Array.isArray(merged.pi.offerings) ? merged.pi.offerings : [];
+      if (D.langs.indexOf(merged.lang) === -1) merged.lang = "ko";
+      if (!D.mysteries[merged.rosary.mystery]) merged.rosary.mystery = "joyful";
+      return merged;
+    } catch (err) {
+      return base;
+    }
+  }
+
+  function save() {
+    try {
+      window.localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    } catch (err) { /* private mode: keep working in memory */ }
+  }
+
+  /* ----------------------------------------------------------- rosary state */
+  var rosary = window.SS_ROSARY.create(state.rosary.mystery);
+  var auto = { on: false, timer: null, elapsed: 0, duration: 0 };
+
+  /* ----------------------------------------------------------- minute state */
+  var minute = { open: false, running: false, elapsed: 0, timer: null, finished: false };
+
+  /* ------------------------------------------------------------------- DOM */
+  var el = {};
+  function cacheEls() {
+    [
+      "phoneFrame", "langToggle", "streakPill", "appMain", "todayLabel", "greeting",
+      "moodChips", "moodMessage", "homeMinuteLink", "homeVerseText", "homeVerseRef",
+      "todoList", "todoProgress", "todoHint", "startPrayerBtn", "startRosaryBtn",
+      "mysteryTabs", "rosaryRecNote", "mysteryStrip", "decadeDots", "rosaryStepInfo",
+      "beads", "prayerLabel", "beadCounter", "prayerText", "stepProgress", "beadBtn",
+      "beadBtnLabel", "autoBtn", "voiceBtn", "resetBtn", "focusBtn", "rosaryDone",
+      "doneAgainBtn", "doneRoutineBtn", "coachThread", "coachChips", "coachInput",
+      "coachSend", "streakValue", "bestValue", "weekGrid", "routineTodayList",
+      "routineFeedback", "piModeBadge", "piUserLine", "piConnectBtn", "piLogoutBtn",
+      "piAmountChips", "piMemo", "piOfferBtn", "piStatus", "piRecentList",
+      "solidCount", "solidMine", "resetDataBtn", "minuteSheet", "minuteTitle",
+      "minuteClose", "breathRing", "minuteTime", "minuteStep", "minuteText",
+      "minuteStartBtn", "minuteDoneBtn", "toast", "tabbar"
+    ].forEach(function (id) { el[id] = $(id); });
+  }
+
+  /* ----------------------------------------------------------------- toast */
+  var toastTimer = null;
+  function toast(msg) {
+    if (!el.toast) return;
+    el.toast.textContent = msg;
+    el.toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.toast.hidden = true; }, 2600);
+  }
+
+  function buzz(ms) {
+    try { if (navigator.vibrate) navigator.vibrate(ms || 8); } catch (e) { /* ignore */ }
+  }
+
+  /* ------------------------------------------------------------- date logic */
+  function greetingKey(hour) {
+    if (hour < 5) return "greet.night";
+    if (hour < 12) return "greet.morning";
+    if (hour < 18) return "greet.afternoon";
+    if (hour < 22) return "greet.evening";
+    return "greet.night";
+  }
+
+  function todayKey() { return dateKey(new Date()); }
+  function todayMood() {
+    return state.moodByDate[todayKey()] || null;
+  }
+
+  var VERSE_KEYS = ["rest", "peace", "trust", "forgive", "thanks", "hope", "stillness", "courage", "lonely"];
+  function verseOfDay() {
+    var d = new Date();
+    return D.verses[VERSE_KEYS[dayOfYear(d) % VERSE_KEYS.length]];
+  }
+
+  /* -------------------------------------------------------------- routine */
+  function routineFor(key) {
+    return state.routine[key] || { prayer: false, rosary: false, word: false };
+  }
+
+  function hasAny(key) {
+    var r = state.routine[key];
+    return !!(r && (r.prayer || r.rosary || r.word));
+  }
+
+  function currentStreak() {
+    var count = 0;
+    var cursor = new Date();
+    if (!hasAny(dateKey(cursor))) cursor = addDays(cursor, -1);
+    while (hasAny(dateKey(cursor))) {
+      count += 1;
+      cursor = addDays(cursor, -1);
+    }
+    return count;
+  }
+
+  function refreshBest() {
+    var s = currentStreak();
+    if (s > state.best) state.best = s;
+    return s;
+  }
+
+  function recordRoutine(key, opts) {
+    var k = todayKey();
+    var day = state.routine[k] || (state.routine[k] = { prayer: false, rosary: false, word: false });
+    if (day[key]) return false;
+    day[key] = true;
+    refreshBest();
+    save();
+    renderHeader();
+    renderHome();
+    renderRoutine();
+    if (opts && opts.silent !== true) {
+      var label = { prayer: "home.todo.prayer", rosary: "home.todo.rosary", word: "home.todo.word" }[key];
+      toast("✓ " + t(label));
+    }
+    return true;
+  }
+
+  function toggleRoutine(key) {
+    var k = todayKey();
+    var day = state.routine[k] || (state.routine[k] = { prayer: false, rosary: false, word: false });
+    day[key] = !day[key];
+    refreshBest();
+    save();
+    renderHeader();
+    renderHome();
+    renderRoutine();
+  }
+
+  function renderHeader() {
+    var streak = currentStreak();
+    el.streakPill.hidden = streak <= 0;
+    el.streakPill.innerHTML = "🔥 <b>" + streak + "</b>";
+  }
+
+  /* ------------------------------------------------------------------ i18n */
+  function applyI18n() {
+    var nodes = document.querySelectorAll("[data-i18n]");
+    for (var i = 0; i < nodes.length; i++) {
+      nodes[i].textContent = t(nodes[i].getAttribute("data-i18n"));
+    }
+    var ph = document.querySelectorAll("[data-i18n-placeholder]");
+    for (var j = 0; j < ph.length; j++) {
+      ph[j].setAttribute("placeholder", t(ph[j].getAttribute("data-i18n-placeholder")));
+    }
+    document.documentElement.lang = lang;
+    document.title = "SoulSync · " + (lang === "ko" ? "소울싱크" : "Faith, heart & rhythm");
+    el.langToggle.textContent = lang === "ko" ? "EN" : "KR";
+    el.langToggle.setAttribute("aria-label", t("common.langSwitch"));
+  }
+
+  /* ------------------------------------------------------------------ HOME */
+  function renderHome() {
+    var now = new Date();
+    el.todayLabel.textContent = new Intl.DateTimeFormat(locale(), {
+      month: "long", day: "numeric", weekday: "long"
+    }).format(now);
+    el.greeting.textContent = t(greetingKey(now.getHours()));
+
+    // mood chips
+    el.moodChips.innerHTML = "";
+    var selected = todayMood();
+    D.moods.forEach(function (m) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "mood-chip" + (selected === m.key ? " is-selected" : "");
+      b.setAttribute("data-mood", m.key);
+      b.setAttribute("aria-pressed", selected === m.key ? "true" : "false");
+      b.innerHTML = '<span class="emoji" aria-hidden="true">' + m.emoji + "</span><span>" + L(m.label) + "</span>";
+      el.moodChips.appendChild(b);
+    });
+
+    // message
+    var mood = null;
+    D.moods.forEach(function (m) { if (m.key === selected) mood = m; });
+    el.moodMessage.textContent = mood ? L(mood.message) : t("home.pickMoodFirst");
+
+    // verse
+    var v = verseOfDay();
+    el.homeVerseText.textContent = v.text[lang];
+    el.homeVerseRef.textContent = v.ref[lang];
+
+    // todo
+    var day = routineFor(todayKey());
+    var items = [
+      { key: "prayer", label: t("home.todo.prayer"), meta: "1 min" },
+      { key: "rosary", label: t("home.todo.rosary"), meta: "10 " + (lang === "ko" ? "알" : "beads") },
+      { key: "word", label: t("home.todo.word"), meta: lang === "ko" ? "말씀" : "verse" }
+    ];
+    var doneCount = 0;
+    el.todoList.innerHTML = "";
+    items.forEach(function (it) {
+      var done = !!day[it.key];
+      if (done) doneCount += 1;
+      var li = document.createElement("li");
+      li.className = "todo-item" + (done ? " is-done" : "");
+      li.setAttribute("data-todo", it.key);
+      li.setAttribute("role", "checkbox");
+      li.setAttribute("aria-checked", done ? "true" : "false");
+      li.tabIndex = 0;
+      li.innerHTML =
+        '<span class="check" aria-hidden="true">✓</span>' +
+        '<span class="label">' + it.label + "</span>" +
+        '<span class="meta">' + (done ? t("rosary.complete") : it.meta) + "</span>";
+      el.todoList.appendChild(li);
+    });
+    el.todoProgress.textContent = t("home.todoProgress", { done: doneCount, total: items.length });
+    el.todoHint.textContent = doneCount === items.length ? t("home.todoAllDone") : t("home.todoHint");
+
+    renderHeader();
+  }
+
+  function selectMood(key) {
+    state.moodByDate[todayKey()] = key;
+    save();
+    buzz(8);
+    renderHome();
+    var mood = null;
+    D.moods.forEach(function (m) { if (m.key === key) mood = m; });
+    if (mood) {
+      // Keep the rosary recommendation in sync with today's heart.
+      state.rosary.mystery = mood.mystery;
+      save();
+      rosary = window.SS_ROSARY.create(mood.mystery);
+      renderRosary();
+    }
+  }
+
+  /* ---------------------------------------------------------------- ROSARY */
+  function currentPrayerData() {
+    var step = rosary.step;
+    if (!step) return null;
+    if (step.kind === "meditation") {
+      var m = D.mysteries[rosary.mystery];
+      var item = m.items[step.decade];
+      return { title: L(item.name), text: L(item.meditation), seconds: 15, meditation: true };
+    }
+    var p = D.prayers[step.kind];
+    return { title: L(p.title), text: L(p.text), seconds: p.seconds, meditation: false };
+  }
+
+  function renderRosary() {
+    // mystery selector
+    if (el.mysteryTabs.childElementCount !== 4) {
+      el.mysteryTabs.innerHTML = "";
+      Object.keys(D.mysteries).forEach(function (key) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "seg";
+        b.setAttribute("data-mystery", key);
+        el.mysteryTabs.appendChild(b);
+      });
+    }
+    var tabs = el.mysteryTabs.querySelectorAll(".seg");
+    for (var i = 0; i < tabs.length; i++) {
+      var key = tabs[i].getAttribute("data-mystery");
+      tabs[i].textContent = L(D.mysteries[key].short);
+      tabs[i].classList.toggle("is-active", key === rosary.mystery);
+      tabs[i].setAttribute("aria-pressed", key === rosary.mystery ? "true" : "false");
+    }
+
+    // recommendation line
+    var mood = todayMood();
+    var rec = mood
+      ? D.moods.filter(function (m) { return m.key === mood; })[0]
+      : null;
+    if (rec) {
+      var recMystery = D.mysteries[rec.mystery];
+      el.rosaryRecNote.textContent =
+        t("rosary.recLabel") + ": " + L(recMystery.label) + " — " + t("rosary.recReason." + rec.mystery);
+    } else {
+      el.rosaryRecNote.textContent = t("rosary.recLabel") + ": " + L(D.mysteries[rosary.mystery].label);
+    }
+
+    // mystery list for this set
+    var set = D.mysteries[rosary.mystery];
+    var curDecade = rosary.currentDecade();
+    var completed = rosary.completedDecades();
+    el.mysteryStrip.innerHTML = "";
+    set.items.forEach(function (item, idx) {
+      var li = document.createElement("li");
+      if (idx < completed) li.className = "is-done";
+      else if (idx === curDecade) li.className = "is-current";
+      li.innerHTML = '<span class="num">' + (idx + 1) + "</span><span>" + L(item.name) + "</span>";
+      el.mysteryStrip.appendChild(li);
+    });
+
+    // decade dots
+    var statuses = rosary.decadeStatus();
+    el.decadeDots.innerHTML = "";
+    statuses.forEach(function (st) {
+      var s = document.createElement("span");
+      if (st === "done") s.className = "is-done";
+      if (st === "current") s.className = "is-current";
+      el.decadeDots.appendChild(s);
+    });
+
+    // bead row
+    var step = rosary.step;
+    var beadsDone = rosary.beadsInDecade();
+    el.beads.innerHTML = "";
+    for (var b = 1; b <= 10; b++) {
+      var dot = document.createElement("span");
+      if (b <= beadsDone) dot.className = "is-done";
+      else if (step && step.kind === "hailMary" && step.bead === b && step.decade !== null) dot.className = "is-now";
+      el.beads.appendChild(dot);
+    }
+
+    // labels
+    var info = rosary.finished
+      ? t("rosary.complete")
+      : (curDecade < 0 ? t("rosary.opening") : t("rosary.decade", { n: curDecade + 1 }));
+    el.rosaryStepInfo.textContent = info;
+
+    if (!step) {
+      el.prayerLabel.textContent = t("rosary.complete");
+      el.prayerText.textContent = t("rosary.closing");
+      el.beadCounter.textContent = "5 / 5";
+      el.beadBtn.disabled = true;
+      el.beadBtnLabel.textContent = t("rosary.complete");
+      el.rosaryDone.hidden = false;
+    } else {
+      var data = currentPrayerData();
+      el.prayerLabel.textContent = data.title;
+      el.prayerText.textContent = data.text;
+      el.beadCounter.textContent = step.kind === "hailMary"
+        ? t("rosary.bead", { n: step.bead })
+        : (step.decade === null ? "" : t("rosary.decade", { n: step.decade + 1 }));
+      el.beadBtn.disabled = false;
+      el.beadBtnLabel.textContent = data.meditation ? t("rosary.beadBtnMed") : t("rosary.beadBtn");
+      el.rosaryDone.hidden = true;
+    }
+
+    if (!auto.on) {
+      el.stepProgress.style.width = (rosary.index / rosary.total * 100).toFixed(2) + "%";
+    }
+    el.autoBtn.setAttribute("aria-pressed", auto.on ? "true" : "false");
+    el.autoBtn.innerHTML = auto.on
+      ? '<span aria-hidden="true">❚❚</span> <span>' + t("rosary.autoStop") + "</span>"
+      : '<span aria-hidden="true">▶</span> <span>' + t("rosary.autoStart") + "</span>";
+    el.voiceBtn.setAttribute("aria-pressed", state.settings.voice ? "true" : "false");
+    el.voiceBtn.innerHTML = state.settings.voice
+      ? '<span aria-hidden="true">🔊</span> <span>' + t("rosary.voiceOn") + "</span>"
+      : '<span aria-hidden="true">🔈</span> <span>' + t("rosary.voiceOff") + "</span>";
+    el.focusBtn.setAttribute("aria-pressed", state.settings.focus ? "true" : "false");
+    el.phoneFrame.classList.toggle("focus-mode", !!state.settings.focus);
+  }
+
+  function advanceRosary(manual) {
+    var before = rosary.step;
+    if (!before) return;
+
+    rosary.next();
+    buzz(6);
+
+    // One decade prayed = today's rosary routine is complete (the MVP goal).
+    if (before.kind === "hailMary" && before.stage === "decade" && before.bead === 10) {
+      recordRoutine("rosary", { silent: true });
+      chime("decade");
+      addSolidarity(1);
+      toast("🙏 " + t("rosary.decadeDone", { n: (before.decade + 1) }));
+    }
+
+    if (rosary.finished) {
+      stopAuto();
+      chime("finish");
+      recordRoutine("rosary", { silent: true });
+      try {
+        if (el.rosaryDone.scrollIntoView) {
+          el.rosaryDone.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      } catch (e) { /* older browsers */ }
+    }
+
+    renderRosary();
+    if (auto.on && !rosary.finished) {
+      beginStepTimer();
+      speakCurrent();
+    }
+  }
+
+  /* ------------------------------------------------------------ voice/chime */
+  function speakCurrent() {
+    if (!state.settings.voice) return;
+    if (typeof window.speechSynthesis === "undefined") {
+      toast(t("rosary.voiceUnsupported"));
+      state.settings.voice = false;
+      save();
+      renderRosary();
+      return;
+    }
+    var data = currentPrayerData();
+    if (!data) return;
+    try {
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(data.text);
+      u.lang = lang === "ko" ? "ko-KR" : "en-US";
+      u.rate = 0.92;
+      u.pitch = 1;
+      window.speechSynthesis.speak(u);
+    } catch (e) { /* ignore */ }
+  }
+
+  function stopSpeech() {
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+  }
+
+  var audioCtx = null;
+  function chime(kind) {
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      if (!audioCtx) audioCtx = new Ctx();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      var notes = kind === "decade" ? [523.25, 659.25, 783.99] : [523.25, 783.99];
+      var now = audioCtx.currentTime;
+      notes.forEach(function (freq, i) {
+        var o = audioCtx.createOscillator();
+        var g = audioCtx.createGain();
+        o.type = "sine";
+        o.frequency.value = freq;
+        var start = now + i * 0.16;
+        g.gain.setValueAtTime(0.0001, start);
+        g.gain.linearRampToValueAtTime(0.09, start + 0.04);
+        g.gain.exponentialRampToValueAtTime(0.0001, start + 1.3);
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.start(start);
+        o.stop(start + 1.35);
+      });
+    } catch (e) { /* audio is a bonus, never a failure */ }
+  }
+
+  /* -------------------------------------------------------------- auto flow */
+  function beginStepTimer() {
+    var data = currentPrayerData();
+    var seconds = data ? data.seconds : DECADE_SECONDS;
+    if (state.settings.voice) seconds = Math.max(seconds, Math.min(28, Math.round(data.text.length / 9)));
+    auto.elapsed = 0;
+    auto.duration = seconds * 1000;
+  }
+
+  function startAuto() {
+    if (rosary.finished) rosary.reset();
+    auto.on = true;
+    beginStepTimer();
+    clearInterval(auto.timer);
+    auto.timer = setInterval(function () {
+      auto.elapsed += 100;
+      var pct = Math.min(1, auto.elapsed / auto.duration);
+      if (!auto.on) return;
+      el.stepProgress.style.width = (pct * 100).toFixed(2) + "%";
+      if (pct >= 1) {
+        auto.elapsed = 0;
+        if (rosary.finished) { stopAuto(); return; }
+        advanceRosary();
+      }
+    }, 100);
+    renderRosary();
+    speakCurrent();
+  }
+
+  function stopAuto() {
+    auto.on = false;
+    clearInterval(auto.timer);
+    auto.timer = null;
+    renderRosary();
+  }
+
+  function toggleAuto() {
+    if (auto.on) stopAuto();
+    else startAuto();
+  }
+
+  function setMystery(key) {
+    if (!D.mysteries[key] || key === rosary.mystery) return;
+    stopAuto();
+    stopSpeech();
+    state.rosary.mystery = key;
+    save();
+    rosary = window.SS_ROSARY.create(key);
+    renderRosary();
+  }
+
+  function resetRosary() {
+    stopAuto();
+    stopSpeech();
+    rosary.reset();
+    renderRosary();
+  }
+
+  function toggleVoice() {
+    state.settings.voice = !state.settings.voice;
+    save();
+    if (state.settings.voice) {
+      speakCurrent();
+      buzz(10);
+    } else {
+      stopSpeech();
+    }
+    renderRosary();
+  }
+
+  function toggleFocus() {
+    state.settings.focus = !state.settings.focus;
+    save();
+    buzz(8);
+    renderRosary();
+  }
+
+  /* ---------------------------------------------------------------- minute */
+  function renderMinute() {
+    var steps = D.minute.steps;
+    var idx = Math.min(steps.length - 1, Math.floor(minute.elapsed / (D.minute.seconds / steps.length)));
+    var step = steps[idx];
+    if (minute.finished) {
+      el.minuteStep.textContent = t("minute.doneTitle");
+      el.minuteText.textContent = t("minute.doneBody");
+    } else {
+      el.minuteStep.textContent = step.title[lang] + " · " + t("minute.step", { n: idx + 1, total: steps.length });
+      el.minuteText.textContent = step.text[lang];
+    }
+    var remaining = Math.max(0, D.minute.seconds - minute.elapsed);
+    el.minuteTime.textContent = minute.finished ? "✓" : String(remaining);
+    el.breathRing.classList.toggle("is-breathing", minute.running && !minute.finished);
+    el.minuteStartBtn.hidden = minute.running || minute.finished;
+    el.minuteDoneBtn.hidden = !minute.running;
+  }
+
+  function openMinute() {
+    minute.open = true;
+    minute.running = false;
+    minute.finished = false;
+    minute.elapsed = 0;
+    clearInterval(minute.timer);
+    el.minuteSheet.hidden = false;
+    el.minuteTime.textContent = String(D.minute.seconds);
+    el.minuteStartBtn.hidden = false;
+    el.minuteDoneBtn.hidden = true;
+    el.breathRing.classList.remove("is-breathing");
+    renderMinute();
+  }
+
+  function closeMinute() {
+    clearInterval(minute.timer);
+    minute.open = false;
+    minute.running = false;
+    el.minuteSheet.hidden = true;
+    stopSpeech();
+  }
+
+  function startMinute() {
+    minute.running = true;
+    minute.finished = false;
+    minute.elapsed = 0;
+    buzz(10);
+    chime("soft");
+    speakMinute();
+    clearInterval(minute.timer);
+    minute.timer = setInterval(function () {
+      minute.elapsed += 1;
+      if (minute.elapsed >= D.minute.seconds) {
+        finishMinute(true);
+        return;
+      }
+      renderMinute();
+      var steps = D.minute.steps;
+      var stage = Math.floor(minute.elapsed / (D.minute.seconds / steps.length));
+      var prevStage = Math.floor((minute.elapsed - 1) / (D.minute.seconds / steps.length));
+      if (stage !== prevStage) speakMinute();
+    }, 1000);
+    renderMinute();
+  }
+
+  function speakMinute() {
+    if (!state.settings.voice) return;
+    if (!window.speechSynthesis) return;
+    try {
+      var steps = D.minute.steps;
+      var idx = Math.min(steps.length - 1, Math.floor(minute.elapsed / (D.minute.seconds / steps.length)));
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(steps[idx].text[lang]);
+      u.lang = lang === "ko" ? "ko-KR" : "en-US";
+      u.rate = 0.9;
+      window.speechSynthesis.speak(u);
+    } catch (e) { /* ignore */ }
+  }
+
+  function finishMinute(completed) {
+    clearInterval(minute.timer);
+    minute.running = false;
+    minute.finished = true;
+    el.minuteTime.textContent = "✓";
+    el.minuteStep.textContent = t("minute.doneTitle");
+    el.minuteText.textContent = t("minute.doneBody");
+    el.minuteStartBtn.hidden = true;
+    el.minuteDoneBtn.hidden = true;
+    el.breathRing.classList.remove("is-breathing");
+    if (completed) {
+      recordRoutine("prayer", { silent: true });
+      chime("finish");
+    }
+  }
+
+  /* ----------------------------------------------------------------- COACH */
+  function renderCoach() {
+    el.coachThread.innerHTML = "";
+    if (!state.coach.length) {
+      var empty = document.createElement("p");
+      empty.className = "thread-empty";
+      empty.textContent = t("coach.empty");
+      el.coachThread.appendChild(empty);
+    } else {
+      state.coach.forEach(function (msg) {
+        if (msg.role === "user") {
+          var b = document.createElement("div");
+          b.className = "bubble-user";
+          b.textContent = msg.text;
+          el.coachThread.appendChild(b);
+          return;
+        }
+        // Replies are stored as a theme + the user's words, then re-rendered in
+        // the current language — so switching KR/EN translates past answers too.
+        var reply = msg.theme !== undefined
+          ? window.SS_COACH.respondForTheme(msg.theme, lang)
+          : msg.reply;
+        if (!reply) return;
+        var card = document.createElement("div");
+        card.className = "coach-reply";
+        var html = '<p class="empathy">' + escapeHtml(reply.empathy) + "</p>";
+        html += '<p class="section-label">' + t("coach.actionLabel") + "</p>";
+        html += '<div class="action-box">' + escapeHtml(reply.action) + "</div>";
+        html += '<p class="section-label">' + t("coach.verseTitle") + "</p>";
+        html += '<div class="verse-box"><p class="v-text">' + escapeHtml(reply.verse.text) + "</p>" +
+          '<p class="v-ref">' + escapeHtml(reply.verse.ref) + "</p></div>";
+        html += '<div class="reply-actions">' +
+          '<button class="btn btn-primary" type="button" data-pray="' + reply.mystery + '">' +
+          t("coach.prayCta") + "</button>" +
+          '<span class="reply-mystery">' + escapeHtml(t("coach.mysteryNote", { mystery: reply.mysteryShort })) + "</span>" +
+          "</div>";
+        card.innerHTML = html;
+        el.coachThread.appendChild(card);
+      });
+    }
+
+    // quick chips
+    el.coachChips.innerHTML = "";
+    ["coach.chip1", "coach.chip2", "coach.chip3", "coach.chip4", "coach.chip5", "coach.chip6"].forEach(function (key) {
+      var c = document.createElement("button");
+      c.type = "button";
+      c.className = "quick-chip";
+      c.textContent = t(key);
+      c.setAttribute("data-chip", t(key));
+      el.coachChips.appendChild(c);
+    });
+    scrollThread();
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function scrollThread() {
+    // Never yank another screen to the bottom just because the coach re-rendered.
+    if (activeTab !== "coach") return;
+    if (el.appMain) {
+      requestAnimationFrame(function () { el.appMain.scrollTop = el.appMain.scrollHeight; });
+    }
+  }
+
+  function sendCoach(text) {
+    var msg = String(text || "").trim();
+    if (!msg) return;
+    state.coach.push({ role: "user", text: msg });
+    el.coachInput.value = "";
+    save();
+    renderCoach();
+
+    // typing indicator
+    var typing = document.createElement("div");
+    typing.className = "coach-reply typing";
+    typing.innerHTML = "<span></span><span></span><span></span>";
+    el.coachThread.appendChild(typing);
+    scrollThread();
+
+    setTimeout(function () {
+      var reply = window.SS_COACH.respond(msg, lang);
+      state.coach.push({ role: "coach", theme: reply.theme, source: msg });
+      save();
+      if (typing.parentNode) typing.parentNode.removeChild(typing);
+      renderCoach();
+    }, 620);
+  }
+
+  /* --------------------------------------------------------------- ROUTINE */
+  function renderRoutine() {
+    var streak = currentStreak();
+    el.streakValue.textContent = streak;
+    el.bestValue.textContent = state.best;
+
+    // last 7 days
+    el.weekGrid.innerHTML = "";
+    var today = new Date();
+    for (var i = 6; i >= 0; i--) {
+      var d = addDays(today, -i);
+      var key = dateKey(d);
+      var day = routineFor(key);
+      var cell = document.createElement("div");
+      cell.className = "day-cell" + (i === 0 ? " is-today" : "");
+      var dots = "";
+      ["prayer", "rosary", "word"].forEach(function (f) {
+        dots += '<i class="' + f + (day[f] ? " on" : "") + '"></i>';
+      });
+      cell.innerHTML =
+        '<span class="wd">' + new Intl.DateTimeFormat(locale(), { weekday: "short" }).format(d) + "</span>" +
+        '<span class="dn">' + d.getDate() + "</span>" +
+        '<span class="day-dots">' + dots + "</span>";
+      el.weekGrid.appendChild(cell);
+    }
+
+    // today's checklist
+    var day = routineFor(todayKey());
+    el.routineTodayList.innerHTML = "";
+    [
+      { key: "prayer", label: t("home.todo.prayer") },
+      { key: "rosary", label: t("home.todo.rosary") },
+      { key: "word", label: t("home.todo.word") }
+    ].forEach(function (it) {
+      var done = !!day[it.key];
+      var li = document.createElement("li");
+      li.className = "todo-item" + (done ? " is-done" : "");
+      li.setAttribute("data-todo", it.key);
+      li.setAttribute("role", "checkbox");
+      li.setAttribute("aria-checked", done ? "true" : "false");
+      li.tabIndex = 0;
+      li.innerHTML = '<span class="check" aria-hidden="true">✓</span><span class="label">' + it.label + "</span>" +
+        '<span class="meta">' + (done ? t("rosary.complete") : "") + "</span>";
+      el.routineTodayList.appendChild(li);
+    });
+
+    // feedback
+    var doneToday = ["prayer", "rosary", "word"].filter(function (k) { return day[k]; }).length;
+    var anyHistory = Object.keys(state.routine).some(function (k) { return hasAny(k); });
+    var key;
+    if (!anyHistory) key = "routine.fb.none";
+    else if (doneToday === 3) key = "routine.fb.good";
+    else if (streak >= 2) key = "routine.fb.steady";
+    else if (doneToday > 0) key = "routine.fb.steady";
+    else if (anyHistory) key = "routine.fb.restart";
+    else key = "routine.fb.start";
+    el.routineFeedback.textContent = t(key);
+
+    renderPi();
+  }
+
+  /* -------------------------------------------------------------------- PI */
+  var piAmount = 1;
+  var AMOUNTS = [0.1, 1, 3.14];
+
+  function solidarityBase() {
+    return 12847 + (dayOfYear(new Date()) * 37) % 613;
+  }
+
+  function addSolidarity(n) {
+    state.pi.mine = (state.pi.mine || 0) + n;
+    save();
+    renderPi();
+  }
+
+  function renderPi() {
+    var live = window.SS_PI.mode === "pi";
+    el.piModeBadge.textContent = live ? t("pi.modeLive") : t("pi.demo");
+    el.piModeBadge.classList.toggle("live", live);
+
+    el.piUserLine.hidden = !state.pi.connected;
+    if (state.pi.connected) {
+      el.piUserLine.innerHTML = t("pi.connectedAs") + ": <b>@" +
+        escapeHtml(state.pi.username || t("pi.demoUser")) + "</b>";
+    }
+    el.piConnectBtn.hidden = !!state.pi.connected;
+    el.piLogoutBtn.hidden = !state.pi.connected;
+
+    // amounts
+    el.piAmountChips.innerHTML = "";
+    AMOUNTS.forEach(function (a) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "amount-chip" + (a === piAmount ? " is-active" : "");
+      b.setAttribute("data-amount", String(a));
+      b.textContent = (a === 3.14 ? "3.14" : String(a)) + " π";
+      el.piAmountChips.appendChild(b);
+    });
+
+    // recent offerings
+    el.piRecentList.innerHTML = "";
+    if (!state.pi.offerings.length) {
+      var li = document.createElement("li");
+      li.className = "recent-empty";
+      li.textContent = t("pi.noRecent");
+      el.piRecentList.appendChild(li);
+    } else {
+      state.pi.offerings.slice(0, 3).forEach(function (o) {
+        var when = new Date(o.at);
+        var item = document.createElement("li");
+        item.innerHTML =
+          "<span>" + escapeHtml(o.memo || t("pi.offerTitle")) + "</span>" +
+          '<span class="amt">' + o.amount + " π</span>" +
+          '<span class="when">' + pad2(when.getHours()) + ":" + pad2(when.getMinutes()) + "</span>";
+        el.piRecentList.appendChild(item);
+      });
+    }
+
+    var mine = state.pi.mine || 0;
+    el.solidCount.textContent = (solidarityBase() + mine).toLocaleString(locale());
+    el.solidMine.textContent = t("pi.solidMine", { n: mine });
+  }
+
+  function connectPi() {
+    var btn = el.piConnectBtn;
+    btn.disabled = true;
+    btn.textContent = t("pi.connecting");
+    window.SS_PI.authenticate().then(function (user) {
+      state.pi.connected = true;
+      state.pi.username = user.username;
+      save();
+      btn.disabled = false;
+      renderPi();
+      toast("✓ " + t("pi.connectedAs") + ": @" + user.username);
+    }).catch(function () {
+      btn.disabled = false;
+      renderPi();
+      toast(t("pi.failed"));
+    });
+  }
+
+  function disconnectPi() {
+    state.pi.connected = false;
+    state.pi.username = null;
+    window.SS_PI.reset();
+    save();
+    renderPi();
+  }
+
+  function offerPi() {
+    if (!state.pi.connected) {
+      toast(t("pi.needConnect"));
+      return;
+    }
+    var memo = el.piMemo.value.trim();
+    el.piOfferBtn.disabled = true;
+    el.piStatus.className = "pi-status";
+    el.piStatus.textContent = t("pi.processing");
+    window.SS_PI.pay({ amount: piAmount, memo: memo }).then(function (res) {
+      state.pi.offerings.unshift({
+        amount: res.amount,
+        memo: res.memo,
+        at: new Date().toISOString(),
+        mode: res.mode,
+        id: res.identifier
+      });
+      if (state.pi.offerings.length > 20) state.pi.offerings.length = 20;
+      save();
+      el.piOfferBtn.disabled = false;
+      el.piMemo.value = "";
+      el.piStatus.className = "pi-status is-ok";
+      el.piStatus.textContent = res.mode === "pi" ? t("pi.success") : t("pi.demoSuccess");
+      chime("finish");
+      renderPi();
+    }).catch(function (err) {
+      el.piOfferBtn.disabled = false;
+      var cancelled = err && String(err.message || "").indexOf("cancelled") === 0;
+      el.piStatus.className = "pi-status is-error";
+      el.piStatus.textContent = cancelled ? t("pi.cancelled") : t("pi.failed");
+      renderPi();
+    });
+  }
+
+  function resetData() {
+    if (!window.confirm(t("pi.resetConfirm"))) return;
+    try { window.localStorage.removeItem(STORE_KEY); } catch (e) { /* ignore */ }
+    state = defaultState();
+    state.lang = lang;
+    rosary = window.SS_ROSARY.create(state.rosary.mystery);
+    piAmount = 1;
+    save();
+    renderAll();
+    toast(t("pi.reset"));
+  }
+
+  /* ------------------------------------------------------------------ tabs */
+  var activeTab = "home";
+  function switchTab(name) {
+    if (!name) return;
+    if (activeTab === "rosary" && name !== "rosary") {
+      stopAuto();
+      stopSpeech();
+    }
+    activeTab = name;
+    var views = document.querySelectorAll(".view");
+    for (var i = 0; i < views.length; i++) {
+      views[i].classList.toggle("is-active", views[i].getAttribute("data-view") === name);
+    }
+    var tabs = el.tabbar.querySelectorAll(".tab");
+    for (var j = 0; j < tabs.length; j++) {
+      var on = tabs[j].getAttribute("data-tab") === name;
+      tabs[j].classList.toggle("is-active", on);
+      if (on) tabs[j].setAttribute("aria-current", "page");
+      else tabs[j].removeAttribute("aria-current");
+    }
+    el.appMain.scrollTop = 0;
+    if (name === "routine") {
+      el.bestValue.textContent = state.best;
+      renderRoutine();
+    }
+    if (name === "rosary") renderRosary();
+    if (name === "coach") scrollThread();
+  }
+
+  /* ------------------------------------------------------------------ init */
+  function setLanguage(next) {
+    lang = next === "en" ? "en" : "ko";
+    state.lang = lang;
+    save();
+    applyI18n();
+    renderAll();
+  }
+
+  function renderAll() {
+    renderHeader();
+    renderHome();
+    renderRosary();
+    renderCoach();
+    renderRoutine();
+    if (minute.open) renderMinute();
+    el.phoneFrame.classList.toggle("focus-mode", !!state.settings.focus);
+  }
+
+  function bindEvents() {
+    el.langToggle.addEventListener("click", function () {
+      setLanguage(lang === "ko" ? "en" : "ko");
+    });
+
+    el.tabbar.addEventListener("click", function (e) {
+      var btn = e.target.closest(".tab");
+      if (btn) switchTab(btn.getAttribute("data-tab"));
+    });
+
+    el.moodChips.addEventListener("click", function (e) {
+      var chip = e.target.closest(".mood-chip");
+      if (chip) selectMood(chip.getAttribute("data-mood"));
+    });
+
+    function todoClick(e) {
+      var item = e.target.closest("[data-todo]");
+      if (!item) return;
+      toggleRoutine(item.getAttribute("data-todo"));
+      buzz(6);
+    }
+    el.todoList.addEventListener("click", todoClick);
+    el.routineTodayList.addEventListener("click", todoClick);
+
+    el.todoList.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") {
+        var item = e.target.closest("[data-todo]");
+        if (item) { e.preventDefault(); toggleRoutine(item.getAttribute("data-todo")); }
+      }
+    });
+
+    el.startPrayerBtn.addEventListener("click", openMinute);
+    el.homeMinuteLink.addEventListener("click", openMinute);
+    el.startRosaryBtn.addEventListener("click", function () {
+      var mood = todayMood();
+      if (mood) {
+        var m = D.moods.filter(function (x) { return x.key === mood; })[0];
+        if (m && m.mystery !== rosary.mystery) {
+          state.rosary.mystery = m.mystery;
+          save();
+          rosary = window.SS_ROSARY.create(m.mystery);
+        }
+      }
+      switchTab("rosary");
+    });
+
+    el.mysteryTabs.addEventListener("click", function (e) {
+      var b = e.target.closest(".seg");
+      if (b) setMystery(b.getAttribute("data-mystery"));
+    });
+
+    el.beadBtn.addEventListener("click", function () {
+      var btn = el.beadBtn;
+      btn.classList.remove("is-pulse");
+      void btn.offsetWidth;
+      btn.classList.add("is-pulse");
+      advanceRosary(true);
+    });
+
+    el.autoBtn.addEventListener("click", toggleAuto);
+    el.voiceBtn.addEventListener("click", toggleVoice);
+    el.focusBtn.addEventListener("click", toggleFocus);
+    el.resetBtn.addEventListener("click", resetRosary);
+    el.doneAgainBtn.addEventListener("click", function () {
+      resetRosary();
+      el.appMain.scrollTop = 0;
+    });
+    el.doneRoutineBtn.addEventListener("click", function () { switchTab("routine"); });
+
+    el.coachSend.addEventListener("click", function () {
+      sendCoach(el.coachInput.value);
+    });
+    el.coachInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendCoach(el.coachInput.value);
+      }
+    });
+    el.coachChips.addEventListener("click", function (e) {
+      var chip = e.target.closest("[data-chip]");
+      if (chip) sendCoach(chip.getAttribute("data-chip"));
+    });
+    el.coachThread.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-pray]");
+      if (!btn) return;
+      var key = btn.getAttribute("data-pray");
+      if (D.mysteries[key]) {
+        state.rosary.mystery = key;
+        save();
+        rosary = window.SS_ROSARY.create(key);
+      }
+      switchTab("rosary");
+      toast(L(D.mysteries[rosary.mystery].label));
+    });
+
+    el.minuteClose.addEventListener("click", closeMinute);
+    el.minuteStartBtn.addEventListener("click", startMinute);
+    el.minuteDoneBtn.addEventListener("click", function () { finishMinute(true); });
+    el.minuteSheet.addEventListener("click", function (e) {
+      if (e.target === el.minuteSheet) closeMinute();
+    });
+
+    el.piConnectBtn.addEventListener("click", connectPi);
+    el.piLogoutBtn.addEventListener("click", disconnectPi);
+    el.piOfferBtn.addEventListener("click", offerPi);
+    el.piAmountChips.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-amount]");
+      if (!b) return;
+      piAmount = Number(b.getAttribute("data-amount"));
+      renderPi();
+    });
+    el.resetDataBtn.addEventListener("click", resetData);
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && minute.open) closeMinute();
+    });
+  }
+
+  var started = false;
+  function start() {
+    if (started) return;
+    started = true;
+    init();
+  }
+
+  function init() {
+    cacheEls();
+    lang = state.lang;
+    window.SS_PI.init(function () {
+      // The SDK can arrive a moment after start-up inside Pi Browser.
+      renderPi();
+    });
+    applyI18n();
+    bindEvents();
+    renderAll();
+    switchTab("home");
+    // Reflect the live/demo Pi environment in the routine header.
+    el.piModeBadge.textContent = window.SS_PI.mode === "pi" ? t("pi.modeLive") : t("pi.demo");
+  }
+
+  // This script sits at the end of <body>, so the markup above it is parsed and
+  // can be used immediately. Listening for DOMContentLoaded as well keeps the
+  // app working when it is injected after load (webviews, test harnesses, Pi
+  // Browser); `start()` makes sure init only ever runs once.
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  }
+  start();
+
+  /* Expose a tiny surface for debugging / automated smoke tests. */
+  window.SoulSync = {
+    get state() { return state; },
+    t: t,
+    lang: function () { return lang; },
+    setLanguage: setLanguage,
+    switchTab: switchTab,
+    selectMood: selectMood,
+    advanceRosary: advanceRosary,
+    startAuto: startAuto,
+    stopAuto: stopAuto,
+    renderAll: renderAll,
+    rosary: function () { return rosary; }
+  };
+})();

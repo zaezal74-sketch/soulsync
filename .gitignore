@@ -1,0 +1,5 @@
+soulsync-preview.html
+node_modules/
+package-lock.json
+tests/
+.DS_Store
