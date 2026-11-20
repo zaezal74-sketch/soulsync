@@ -44,6 +44,10 @@
 /* ------------------------------------------------------------------- reset */
 * { box-sizing: border-box; }
 
+/* The UA's [hidden] rule loses to any author `display`, and `.btn` sets
+   inline-flex — which left "1분 시작하기" and "마치기" on screen together. */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 /* Nothing may push the phone column wider than the screen: a long tagline or a
