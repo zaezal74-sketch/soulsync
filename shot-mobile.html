@@ -35,6 +35,10 @@
       var p = w.document.querySelector('[data-pace="' + q.get("pace") + '"]');
       if (p) p.click();
     }
+    if (q.get("anchor")) {
+      var a = w.document.querySelector(q.get("anchor"));
+      if (a && a.scrollIntoView) a.scrollIntoView({ block: "center" });
+    }
   });
 </script>
 </body>
