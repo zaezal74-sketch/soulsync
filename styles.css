@@ -614,6 +614,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .coach-chips {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 6px;
   padding: 0 0 12px;
 }
@@ -622,7 +623,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   align-content: flex-start;
 }
 .quick-chip {
-  flex: 1 0 auto;
+  flex: 0 0 auto;
   max-width: 100%;
   padding: 7px 10px;
   border-radius: 999px;
