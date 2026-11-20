@@ -619,8 +619,108 @@
     } catch (e) { /* ignore */ }
   }
 
+  /* ---------------------------------------------------------- prayer audio */
+  // Most Android phones (Samsung Internet, KakaoTalk's in-app browser) offer a
+  // single Korean voice through speechSynthesis, so a "male" prayer still came
+  // out in a high, storybook register. These recorded files carry the calm male
+  // voice itself, and an HTMLAudioElement plays them even where speechSynthesis
+  // does not exist at all. Everything else — English, the female voice, or a
+  // file that will not load — falls back to the device voice as before.
+  var PRAYER_AUDIO = {
+    dir: "audio/ko-male/",
+    pace: { slow: 0.95, normal: 1.08, fast: 1.25 }
+  };
+  var prayerAudio = null; // the <audio> sounding right now
+
+  function recordedVoiceOn() {
+    return lang === "ko" && state.settings.voiceGender === "male";
+  }
+
+  function prayerAudioRate() {
+    return PRAYER_AUDIO.pace[state.settings.voicePace] || PRAYER_AUDIO.pace.slow;
+  }
+
+  // The rosary step's recording: the six prayers share one file each, and every
+  // decade of every mystery has its own meditation.
+  function rosaryAudioName() {
+    var step = rosary.step;
+    if (!step) return null;
+    if (step.kind === "meditation") return rosary.mystery + "-" + step.decade;
+    return D.prayers[step.kind] ? step.kind : null;
+  }
+
+  // The 1-minute step's recording for today's heart, or the generic set the
+  // sheet falls back to when no mood is chosen yet.
+  function minuteAudioName(idx) {
+    var key = todayMood();
+    var set = key && D.minute.byMood ? D.minute.byMood[key] : null;
+    return (set && set.length ? "minute-" + key : "minute-default") + "-" + idx;
+  }
+
+  // Rapid next/prev, mute and reset must never leave two prayers talking.
+  function stopRecordedVoice() {
+    var a = prayerAudio;
+    prayerAudio = null;
+    if (!a) return;
+    try { a.pause(); } catch (e) { /* ignore */ }
+    try { a.currentTime = 0; } catch (e) { /* ignore */ }
+  }
+
+  // Returns true once the recording is on its way. If it cannot load or the
+  // browser refuses to play it, `onFail` reads the same words in the device
+  // voice so the reader is never left in silence.
+  function playRecordedVoice(name, onFail) {
+    stopRecordedVoice();
+    var a;
+    try { a = new Audio(PRAYER_AUDIO.dir + name + ".mp3"); } catch (e) { return false; }
+    if (!a || typeof a.play !== "function") return false;
+    // A browser with no MP3 decoder (and a headless one) should read with the
+    // device voice rather than fail silently.
+    if (typeof a.canPlayType === "function" && a.canPlayType("audio/mpeg") === "") return false;
+    prayerAudio = a;
+    function failed() {
+      if (prayerAudio !== a) return; // replaced or stopped meanwhile
+      prayerAudio = null;
+      if (onFail) onFail();
+    }
+    try {
+      a.preload = "auto";
+      a.playbackRate = prayerAudioRate();
+      a.addEventListener("loadedmetadata", function () {
+        if (prayerAudio !== a) return;
+        try { a.playbackRate = prayerAudioRate(); } catch (e) { /* ignore */ }
+        // The recording knows how long the prayer really takes. In the hands-free
+        // flow, let it finish instead of cutting it off at the text-length
+        // estimate — only ever extend, so a failed load changes nothing.
+        if (auto.on && isFinite(a.duration) && a.duration > 0) {
+          var secs = a.duration / prayerAudioRate() + 1.2;
+          if (secs * 1000 > auto.duration) {
+            auto.duration = secs * 1000;
+            if (auto.elapsed > auto.duration - 100) auto.elapsed = Math.max(0, auto.duration - 100);
+          }
+        }
+      });
+      a.addEventListener("error", failed);
+      a.addEventListener("ended", function () {
+        if (prayerAudio === a) prayerAudio = null;
+      });
+      var started = a.play();
+      if (started && typeof started.catch === "function") started.catch(failed);
+    } catch (e) {
+      prayerAudio = null;
+      return false;
+    }
+    return true;
+  }
+
   function speakCurrent() {
     if (!state.settings.voice) return;
+    var data = currentPrayerData();
+    if (!data) return;
+    if (recordedVoiceOn()) {
+      var name = rosaryAudioName();
+      if (name && playRecordedVoice(name, function () { say(data.text, voiceProfile()); })) return;
+    }
     if (typeof window.speechSynthesis === "undefined") {
       toast(t("rosary.voiceUnsupported"));
       state.settings.voice = false;
@@ -628,12 +728,11 @@
       renderRosary();
       return;
     }
-    var data = currentPrayerData();
-    if (!data) return;
     say(data.text, voiceProfile());
   }
 
   function stopSpeech() {
+    stopRecordedVoice();
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
   }
 
@@ -867,10 +966,14 @@
 
   function speakMinute() {
     if (!state.settings.voice) return;
-    if (!window.speechSynthesis) return;
     var steps = minuteSteps();
     var idx = Math.min(steps.length - 1, Math.floor(minute.elapsed / (D.minute.seconds / steps.length)));
-    say(steps[idx].text[lang], voiceProfile());
+    var text = steps[idx].text[lang];
+    if (recordedVoiceOn()) {
+      if (playRecordedVoice(minuteAudioName(idx), function () { say(text, voiceProfile()); })) return;
+    }
+    if (!window.speechSynthesis) return;
+    say(text, voiceProfile());
   }
 
   function finishMinute(completed) {
