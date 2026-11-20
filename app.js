@@ -851,9 +851,18 @@
     renderPi();
   }
 
+  // "live" = real Pi payments, "demoPay" = Pi Browser but no approval server
+  // (static hosting), "demo" = no Pi session at all.
+  function piUiState() {
+    if (window.SS_PI.mode !== "pi") return "demo";
+    return window.SS_PI.paymentMode === "demo" ? "demoPay" : "live";
+  }
+
   function renderPi() {
-    var live = window.SS_PI.mode === "pi";
-    el.piModeBadge.textContent = live ? t("pi.modeLive") : t("pi.demo");
+    var piState = piUiState();
+    var live = piState === "live";
+    el.piModeBadge.textContent = live ? t("pi.modeLive")
+      : (piState === "demoPay" ? t("pi.modeDemoPay") : t("pi.demo"));
     el.piModeBadge.classList.toggle("live", live);
 
     el.piUserLine.hidden = !state.pi.connected;
@@ -909,7 +918,13 @@
       save();
       btn.disabled = false;
       renderPi();
-      toast("✓ " + t("pi.connectedAs") + ": @" + user.username);
+      // A Pi session that could not start (or no payment server) continues as
+      // a demo pioneer — say so instead of pretending it is a Pi account.
+      if (user.mode === "demo" && user.fallback) {
+        toast(t("pi.demoLogin"));
+      } else {
+        toast("✓ " + t("pi.connectedAs") + ": @" + user.username);
+      }
     }).catch(function () {
       btn.disabled = false;
       renderPi();
@@ -952,9 +967,12 @@
       renderPi();
     }).catch(function (err) {
       el.piOfferBtn.disabled = false;
-      var cancelled = err && String(err.message || "").indexOf("cancelled") === 0;
+      var code = err && (err.code || String(err.message || ""));
+      var cancelled = code.indexOf("cancelled") === 0;
+      var noBackend = code.indexOf("backend_missing") === 0;
       el.piStatus.className = "pi-status is-error";
-      el.piStatus.textContent = cancelled ? t("pi.cancelled") : t("pi.failed");
+      el.piStatus.textContent = cancelled ? t("pi.cancelled")
+        : (noBackend ? t("pi.backendMissing") : t("pi.failed"));
       renderPi();
     });
   }
@@ -1156,7 +1174,7 @@
     renderAll();
     switchTab("home");
     // Reflect the live/demo Pi environment in the routine header.
-    el.piModeBadge.textContent = window.SS_PI.mode === "pi" ? t("pi.modeLive") : t("pi.demo");
+    renderPi();
   }
 
   // This script sits at the end of <body>, so the markup above it is parsed and

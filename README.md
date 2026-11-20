@@ -78,8 +78,14 @@ python3 -m http.server 4300
 
 | 환경 | 감지 | 동작 |
 | --- | --- | --- |
-| Pi Browser (`window.Pi` 존재) | `SS_PI.mode === "pi"` | `Pi.init` → `Pi.authenticate` → `Pi.createPayment` (서버 승인 필요) |
+| Pi Browser (`window.Pi` 존재) + 승인 서버 있음 | `SS_PI.mode === "pi"`, `paymentMode === "pi"` | `Pi.init` → `Pi.authenticate` → `Pi.createPayment` (서버 승인) |
+| Pi Browser + 승인 서버 없음(정적 호스팅, `/api/pi/approve` 404·405) | `SS_PI.mode === "pi"`, `paymentMode === "demo"` | 로그인은 실제 Pi로 시도하고, 봉헌은 결제창 없이 데모로 기록(`mode: "demo"`, 실제 차감 없음) |
 | 일반 브라우저 | `SS_PI.mode === "demo"` | 0.65초 지연 후 데모 로그인 / 0.9초 후 데모 봉헌 기록. 모든 결과에 `mode: "demo"` 표시 |
+
+- **승인 서버 확인이 먼저입니다.** `Pi.createPayment`를 열기 전에 `POST <approve endpoint>`를 `{ probe: "soulsync-capability-check" }`로 한 번 두드려 봅니다(POST만이 진짜 라우트와 정적 호스팅의 405를 구분합니다). 404·405·501, HTML 응답, 네트워크 실패면 결제창을 열지 않고 데모로 기록합니다. 그래서 GitHub Pages 같은 정적 호스팅에서도 결제 도중 405가 뜨지 않습니다.
+- 확인 결과는 `SS_PI.backend`(`"live" | "missing"`)와 `SS_PI.paymentMode`에 남고, 화면 배지는 `Pi Browser · 실결제` / `Pi Browser · 데모` / `데모 모드`로 구분됩니다.
+- `Pi.authenticate`가 실패하거나 30초 안에 응답하지 않으면(도메인 미등록, 사용자 취소, 오프라인) 그 세션은 데모 파이오니어로 이어지고 토스트로 알려 줍니다.
+- 승인 서버가 항상 있는 배포라면 `CONFIG.demoFallback = false`로 두면 됩니다(이때는 항상 실결제 경로).
 
 - Pi Browser인데 SDK가 주입되지 않은 경우, 어댑터가 `https://sdk.minepi.com/pi-sdk.js`를 한 번만 동적으로 불러옵니다.
 - 데모 모드에서는 **실제 결제가 일어나지 않으며**, UI에도 "데모 모드 / 실제 결제 없음"이라고 표시됩니다.
@@ -175,6 +181,7 @@ projects/soulsync/
 ├── coach.js            # 키워드 기반 코치 엔진(추후 LLM으로 교체 가능한 응답 형태)
 ├── pi-adapter.js       # Pi Browser / 데모 모드 어댑터
 ├── tests/smoke.test.js # jsdom 기반 스모크 테스트 (선택)
+├── tests/pi-browser.test.js # Pi Browser + 정적 호스팅 폴백 시나리오 테스트 (선택)
 ├── README.md
 └── SUBMISSION_EN.md    # Pi Next 제출용 영문 소개 + 개인정보처리방침 초안
 ```
@@ -186,9 +193,11 @@ projects/soulsync/
 ```bash
 for f in data.js rosary.js coach.js pi-adapter.js app.js; do node --check "$f"; done   # 문법 검사
 node tests/smoke.test.js                                                               # 31개 항목 통과
+node tests/pi-browser.test.js                                                          # Pi Browser 4개 시나리오 7개 항목 통과
 ```
 
 - `node --check`: 5개 JS 파일 모두 통과
+- `tests/pi-browser.test.js`: Pi Browser 스텁 + 네트워크 스텁으로 ① 정적 호스팅(405)에서 결제창 없이 데모 기록 ② 승인 서버가 있으면 실제 `createPayment` 경로 ③ `Pi.authenticate` 거부 시 데모 파이오니어 폴백 ④ 네트워크 실패 시 데모 — 를 확인
 - HTML 구조 검사: 미닫힘 태그 0, 중복 id 0 (72개 id)
 - CSS: 중괄호 균형 통과, 외부 폰트·CDN 의존 없음(오프라인 동작)
 - 스모크 테스트 31개 통과 항목: 묵주 엔진(기도 순서·10알·5단·진행 표시), 코치 분류(지침/불안/감사/외로움/미분류),
@@ -202,6 +211,7 @@ node tests/smoke.test.js                                                        
 cd projects/soulsync
 npm install --no-save jsdom
 node tests/smoke.test.js
+node tests/pi-browser.test.js
 ```
 
 ---

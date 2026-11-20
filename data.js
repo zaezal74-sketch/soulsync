@@ -147,6 +147,8 @@
     "pi.demoSuccess": { ko: "데모 모드로 봉헌을 기록했어요 (실제 결제 없음)", en: "Recorded in demo mode (no real payment)" },
     "pi.cancelled": { ko: "봉헌이 취소되었어요", en: "Offering cancelled" },
     "pi.failed": { ko: "결제를 완료하지 못했어요. 잠시 후 다시 시도해 주세요.", en: "Payment did not complete. Please try again shortly." },
+    "pi.backendMissing": { ko: "결제 승인 서버에 연결하지 못해 실제 결제는 진행되지 않았어요.", en: "No approval server was reachable, so no real payment was made." },
+    "pi.demoLogin": { ko: "Pi 로그인을 시작하지 못해 데모 파이오니어로 이어가요 (실제 결제 없음)", en: "Continuing as a demo pioneer (no real payment)" },
     "pi.needConnect": { ko: "먼저 Pi로 로그인해 주세요.", en: "Sign in with Pi first." },
     "pi.recent": { ko: "최근 봉헌", en: "Recent offerings" },
     "pi.noRecent": { ko: "아직 봉헌 기록이 없어요", en: "No offerings yet" },
@@ -160,6 +162,7 @@
     "pi.note": { ko: "이 프로토타입은 브라우저 로컬 저장소에만 기록해요. 실제 Pi 결제는 Pi Browser와 서버 승인 API가 있어야 해요.", en: "This prototype stores data only in your browser. Real Pi payments need Pi Browser and server approval endpoints." },
     "pi.demoHint": { ko: "일반 브라우저에서는 안전한 데모 시뮬레이션으로 동작해요.", en: "In a normal browser this runs as a safe demo simulation." },
     "pi.modeLive": { ko: "Pi Browser · 실결제", en: "Pi Browser · live" },
+    "pi.modeDemoPay": { ko: "Pi Browser · 데모", en: "Pi Browser · demo" },
 
     "minute.title": { ko: "1분 기도", en: "One-minute prayer" },
     "minute.start": { ko: "1분 시작하기", en: "Begin one minute" },
