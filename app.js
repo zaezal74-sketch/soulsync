@@ -84,6 +84,12 @@
       if (merged.settings.voiceGender !== "female" && merged.settings.voiceGender !== "male") {
         merged.settings.voiceGender = "female";
       }
+      // 여성 목소리가 기본입니다. 그 전에 저장된 기록은 일부러 고른 적 없는 남성
+      // 선택을 들고 있을 수 있어 한 번만 새 기본값으로 넘겨 주고, 그 뒤에 직접
+      // 고른 선택은 voicePicked로 남겨 그대로 지킵니다.
+      if (!(saved.settings && saved.settings.voicePicked)) {
+        merged.settings.voiceGender = base.settings.voiceGender;
+      }
       if (["slow", "normal", "fast"].indexOf(merged.settings.voicePace) === -1) {
         merged.settings.voicePace = "slow";
       }
@@ -871,6 +877,7 @@
   function setVoiceGender(gender) {
     if (!VOICE_GENDER[gender] || state.settings.voiceGender === gender) return;
     state.settings.voiceGender = gender;
+    state.settings.voicePicked = true; // an explicit pick outlives the default
     save();
     buzz(8);
     renderRosary();
