@@ -170,6 +170,7 @@ app.listen(process.env.PORT || 8080);
 - 모든 기록(감정, 루틴, 코치 대화, 봉헌 내역)은 **브라우저 localStorage**(키 `soulsync.v1`)에만 저장됩니다.
 - 서버로 전송되는 개인정보는 없습니다. Pi 로그인 시 Pi SDK가 반환하는 `username`만 화면에 표시합니다.
 - 앱 안의 `내 기록 초기화`로 언제든 전부 삭제할 수 있습니다.
+- 공개 개인정보처리방침(한국어·영어): <https://zaezal74-sketch.github.io/soulsync/privacy.html> — 앱 하단의 `개인정보처리방침` 링크로도 열립니다.
 - 프로토타입 단계에서는 실제 결제·정산이 발생하지 않습니다(데모 모드 명시).
 
 ---
@@ -179,6 +180,8 @@ app.listen(process.env.PORT || 8080);
 ```
 projects/soulsync/
 ├── index.html          # 4개 화면 + 1분 기도 시트 + 하단 탭
+├── privacy.html        # 공개 개인정보처리방침 (한국어·영어, 자체 완결 페이지)
+├── assets/             # 앱 아이콘·로고 (icon-1024 · icon-192 · favicon · logo)
 ├── styles.css          # 모바일 430px 프레임, 데스크톱 폰 프레임, 집중 모드(다크)
 ├── app.js              # 렌더링·이벤트·localStorage·묵주 세션·음성/차임
 ├── audio/ko-male/      # 녹음된 한국어 남성 기도 음성 54개(mp3): 기도 6 · 신비 묵상 20 · 1분 기도 28
@@ -196,11 +199,11 @@ projects/soulsync/
 
 ---
 
-## 6. 검증 결과 (2026-11-21 기준)
+## 6. 검증 결과 (2026-11-22 기준)
 
 ```bash
 for f in data.js rosary.js coach.js pi-adapter.js app.js; do node --check "$f"; done   # 문법 검사
-node tests/smoke.test.js                                                               # 59개 항목 통과
+node tests/smoke.test.js                                                               # 61개 항목 통과
 node tests/pi-browser.test.js                                                          # Pi Browser 4개 시나리오 9개 항목 통과
 ```
 
@@ -208,7 +211,7 @@ node tests/pi-browser.test.js                                                   
 - `tests/pi-browser.test.js`: Pi Browser 스텁 + 네트워크 스텁으로 ① 정적 호스팅(405)에서 결제창 없이 데모 기록 ② 승인 서버가 있으면 실제 `createPayment` 경로 ③ `Pi.authenticate` 거부 시 데모 파이오니어 폴백 ④ 네트워크 실패 시 데모 — 를 확인
 - HTML 구조 검사: 미닫힘 태그 0, 중복 id 0 (72개 id)
 - CSS: 중괄호 균형 통과, 외부 폰트·CDN 의존 없음(오프라인 동작)
-- 스모크 테스트 60개 통과 항목: 묵주 엔진(기도 순서·10알·5단·진행 표시), 코치 분류(지침/불안/감사/외로움/가족/미분류),
+- 스모크 테스트 61개 통과 항목: 묵주 엔진(기도 순서·10알·5단·진행 표시), 코치 분류(지침/불안/감사/외로움/가족/미분류),
   홈 렌더링(감정 6종·루틴 3개·말씀), 1단 기록·연속 달성 표시, 집중 모드 토글, 신비 전환,
   KR↔EN 전환(기도문·동적 문구 포함), 코치 응답 렌더링·번역, 가족 칩 응답(민수기 축복·환희의 신비), Pi 데모 로그인·3.14 π 봉헌 기록,
   1분 기도 완료 기록, 마음별 1분 기도 4단계(6종 × KR/EN)와 시트의 감정 연동,

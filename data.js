@@ -189,7 +189,8 @@
     "common.pi": { ko: "Pi", en: "Pi" },
     "common.settings": { ko: "설정", en: "Settings" },
     "common.langSwitch": { ko: "English로 보기", en: "한국어로 보기" },
-    "common.footer": { ko: "SoulSync · Pi Next Hackathon MVP", en: "SoulSync · Pi Next Hackathon MVP" }
+    "common.footer": { ko: "SoulSync · Pi Next Hackathon MVP", en: "SoulSync · Pi Next Hackathon MVP" },
+    "common.privacy": { ko: "개인정보처리방침", en: "Privacy Policy" }
   };
 
   /* ------------------------------------------------------------------ Moods */

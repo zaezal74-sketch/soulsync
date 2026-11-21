@@ -152,20 +152,22 @@ endpoints and a minimal Node/Express reference implementation are documented in
   padding for notched devices; `prefers-reduced-motion` respected.
 - Accessibility: semantic landmarks, `aria-pressed` toggles, keyboard-operable
   checklist items, visible focus rings, `aria-live` status regions.
-- Local smoke test: 48 checks (engine maths, rendering, mood → mystery mapping,
+- Local smoke test: 61 checks (engine maths, rendering, mood → mystery mapping,
   decade recording, KR/EN, coach — including the family theme and chip — Pi demo,
   1-minute prayer, the selected mood chip's emphasis, the top chip row's order
   and wrapping, persistence, reset).
 
 ---
 
-## 8. Privacy Policy (draft)
+## 8. Privacy Policy
 
-**Last updated: 20 November 2026**
+**Published (Korean + English): <https://zaezal74-sketch.github.io/soulsync/privacy.html>**
 
-SoulSync ("the app", "we") is a prayer and daily-routine companion. This draft
-covers the prototype submitted to the Pi Next Hackathon. Replace the contact
-details at the end before public release.
+**Last updated: 22 November 2026**
+
+SoulSync ("the app", "we") is a prayer and daily-routine companion. This is the
+policy published with the prototype submitted to the Pi Next Hackathon; the
+summary below mirrors that page.
 
 ### 8.1 What we collect
 - **Mood check-ins, routine records (prayer / rosary / verse), and coach
@@ -219,8 +221,8 @@ If this policy changes materially, we will show a notice in the app before the
 change takes effect.
 
 ### 8.9 Contact
-`[contact email — to be filled before submission]`
-`[operator / parish or organisation name — to be filled before submission]`
+Developer: 재잘베니 (pen name)
+App repository and issue tracker: <https://github.com/zaezal74-sketch/soulsync/issues>
 
 ---
 
@@ -247,4 +249,4 @@ engine in this MVP so that judges can see exactly why the app says what it says.
 
 ## 11. Contact
 
-`[name / handle]` · `[email]` · `[Pi app URL]`
+재잘베니 (pen name) · <https://github.com/zaezal74-sketch/soulsync/issues> · https://zaezal74-sketch.github.io/soulsync/
