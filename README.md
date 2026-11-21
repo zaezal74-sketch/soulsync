@@ -102,7 +102,7 @@ python3 -m http.server 4300
 3. **New App** 생성 후 아래를 입력합니다.
    - App Name: `SoulSync`
    - Description: `Faith, heart and daily rhythm — a Catholic prayer & routine companion for Pioneers`
-   - App URL: 배포한 HTTPS 주소 (예: `https://soulsync.example.com`)
+   - App URL: `https://zaezal74-sketch.github.io/` (루트 주소. Pi 포털은 하위 경로가 붙은 주소를 받지 않습니다)
    - Category: `Lifestyle` / `Health & Wellness`
    - Logo, 스크린샷 업로드
 4. 앱 상세 화면에서 **API Key**(서버 승인용)를 발급받아 서버 환경변수에 넣습니다. 이 키는 절대 프론트엔드에 넣지 마세요.
@@ -170,7 +170,8 @@ app.listen(process.env.PORT || 8080);
 - 모든 기록(감정, 루틴, 코치 대화, 봉헌 내역)은 **브라우저 localStorage**(키 `soulsync.v1`)에만 저장됩니다.
 - 서버로 전송되는 개인정보는 없습니다. Pi 로그인 시 Pi SDK가 반환하는 `username`만 화면에 표시합니다.
 - 앱 안의 `내 기록 초기화`로 언제든 전부 삭제할 수 있습니다.
-- 공개 개인정보처리방침(한국어·영어): <https://zaezal74-sketch.github.io/soulsync/privacy.html> — 앱 하단의 `개인정보처리방침` 링크로도 열립니다.
+- 공개 개인정보처리방침(한국어·영어): <https://zaezal74-sketch.github.io/privacy.html> — 앱 하단의 `개인정보처리방침` 링크로도 열립니다.
+- 배포: 앱은 `zaezal74-sketch/zaezal74-sketch.github.io` 저장소(사용자 페이지) 루트에 올라가 `https://zaezal74-sketch.github.io/` 로 열립니다. 소스 저장소 `zaezal74-sketch/soulsync` 와 같은 커밋을 유지합니다(하위 경로 `https://zaezal74-sketch.github.io/soulsync/` 도 계속 열립니다).
 - 프로토타입 단계에서는 실제 결제·정산이 발생하지 않습니다(데모 모드 명시).
 
 ---

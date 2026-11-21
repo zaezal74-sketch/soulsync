@@ -161,7 +161,7 @@ endpoints and a minimal Node/Express reference implementation are documented in
 
 ## 8. Privacy Policy
 
-**Published (Korean + English): <https://zaezal74-sketch.github.io/soulsync/privacy.html>**
+**Published (Korean + English): <https://zaezal74-sketch.github.io/privacy.html>**
 
 **Last updated: 22 November 2026**
 
@@ -249,4 +249,4 @@ engine in this MVP so that judges can see exactly why the app says what it says.
 
 ## 11. Contact
 
-재잘베니 (pen name) · <https://github.com/zaezal74-sketch/soulsync/issues> · https://zaezal74-sketch.github.io/soulsync/
+재잘베니 (pen name) · <https://github.com/zaezal74-sketch/soulsync/issues> · https://zaezal74-sketch.github.io/
