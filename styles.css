@@ -820,6 +820,9 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .foot-note { text-align: center; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 18px 0 4px; }
 .foot-dot { margin: 0 2px 0 4px; opacity: .6; }
 .foot-link {
+  display: inline-block;
+  padding: 5px 3px;   /* keep the 10.5px label tappable on a phone */
+  margin: -5px 0;
   color: var(--muted);
   text-decoration: underline;
   text-decoration-thickness: 1px;
