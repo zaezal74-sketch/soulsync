@@ -548,10 +548,17 @@
   };
 
   /* ----------------------------------------------------------- Coach themes */
+  /* Keyword rule for Korean: every keyword is a stem of at least two syllables
+     that people actually type, never a bare syllable. Korean matches as a
+     substring (조사 are glued on), so a short syllable fires inside unrelated
+     words — "울" is in 소울싱크·서울·울타리, "웃" is in 웃어른, "딸" is in 딸기,
+     "아이" is in 아이디어. Nouns are listed with their common 조사 or in a
+     phrase ("지침이", "아이들", "우리 딸") so the feeling is still recognised
+     without catching words that merely contain those letters. */
   var COACH_THEMES = {
     tired: {
       keywords: {
-        ko: ["지쳐", "지침", "피곤", "힘들", "녹초", "무기력", "번아웃", "쉬고", "졸려", "버거"],
+        ko: ["지쳐", "지쳤", "지치", "피곤", "힘들", "녹초", "무기력", "번아웃", "지침이", "졸려", "버거운", "버겁", "버거워", "기운이 없", "쉬고 싶", "쉬고싶"],
         en: ["tired", "exhausted", "drained", "burnout", "worn out", "no energy", "weary", "sleepy", "overwhelmed"]
       },
       empathy: {
@@ -567,7 +574,7 @@
     },
     anxious: {
       keywords: {
-        ko: ["불안", "걱정", "초조", "두려", "무서", "조마", "긴장", "마음이 답답", "숨이 막"],
+        ko: ["불안", "걱정", "초조", "두려", "무서", "조마", "조바심", "긴장", "마음이 답답", "숨이 막"],
         en: ["anxious", "anxiety", "worried", "worry", "nervous", "afraid", "scared", "panic", "tense"]
       },
       empathy: {
@@ -615,7 +622,7 @@
     },
     family: {
       keywords: {
-        ko: ["가족", "가정", "부모", "어머니", "아버지", "엄마", "아빠", "아이", "아들", "딸", "자녀", "남편", "아내", "부부", "형제", "자매", "손주", "며느리", "사위", "중보", "우리 집", "집안", "사랑", "평화", "건강"],
+        ko: ["가족", "가정을", "가정이", "가정의", "우리 가정", "부모", "어머니", "아버지", "엄마", "아빠", "아이들", "아이가", "아이를", "아이의", "아이에게", "아이와", "아이랑", "아이 키", "아들", "딸이", "딸을", "딸은", "딸도", "딸의", "딸에게", "딸아이", "딸래미", "딸과", "우리 딸", "자녀", "남편", "아내", "부부", "형제", "자매", "손주", "며느리", "사위", "중보", "우리 집", "집안", "사랑", "평화", "건강"],
         en: ["family", "families", "parents", "parent", "mother", "father", "mom", "mum", "dad", "son", "daughter", "children", "child", "kids", "spouse", "husband", "wife", "sibling", "brother", "sister", "grandchild", "intercede", "intercession", "household", "my home", "love", "loved", "loving", "peace", "peaceful", "health", "healthy"]
       },
       empathy: {
@@ -631,7 +638,7 @@
     },
     grateful: {
       keywords: {
-        ko: ["감사", "고마", "기뻐", "좋은 일", "행복", "웃", "선물"],
+        ko: ["감사", "고마", "기뻐", "기쁨", "기뻤", "기쁘", "좋은 일", "행복", "웃음", "웃었", "웃어", "웃는", "웃고", "웃겨", "선물"],
         en: ["grateful", "thankful", "thanks", "good day", "happy", "joy", "blessed"]
       },
       empathy: {
@@ -647,7 +654,7 @@
     },
     lost: {
       keywords: {
-        ko: ["모르겠", "막막", "방향", "선택", "결정", "고민", "어떻게", "길을"],
+        ko: ["모르겠", "막막", "방향을", "방향이", "방향성", "선택을", "선택이", "선택해야", "선택할", "결정을", "결정해야", "결정하기", "결정할", "고민", "어떻게", "길을", "진로"],
         en: ["don't know", "lost", "stuck", "decide", "decision", "confused", "direction", "what to do"]
       },
       empathy: {
@@ -663,7 +670,7 @@
     },
     sad: {
       keywords: {
-        ko: ["슬퍼", "슬프", "울", "눈물", "마음이 아", "상처", "우울", "그립"],
+        ko: ["슬퍼", "슬프", "슬픔", "슬펐", "서러", "울고", "울었", "울어", "울면", "울음", "울먹", "울컥", "울적", "울보", "운다", "우울", "눈물", "마음이 아", "상처", "그리워", "그리운", "그립다", "그립습니다"],
         en: ["sad", "cry", "tears", "hurt", "grief", "depressed", "miss", "broken"]
       },
       empathy: {
