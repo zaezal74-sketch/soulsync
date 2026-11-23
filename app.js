@@ -53,7 +53,7 @@
       routine: {},
       coach: [],
       pi: { connected: false, username: null, offerings: [], mine: 0 },
-      settings: { voice: false, voiceGender: "female", voicePace: "slow", focus: false },
+      settings: { voice: false, voiceGender: "male", voicePace: "slow", focus: false },
       rosary: { mystery: "joyful" },
       best: 0
     };
@@ -82,11 +82,11 @@
       // Voice choices: keep an older save working, and never let a stale value
       // through to the speech profile.
       if (merged.settings.voiceGender !== "female" && merged.settings.voiceGender !== "male") {
-        merged.settings.voiceGender = "female";
+        merged.settings.voiceGender = base.settings.voiceGender;
       }
-      // 여성 목소리가 기본입니다. 그 전에 저장된 기록은 일부러 고른 적 없는 남성
-      // 선택을 들고 있을 수 있어 한 번만 새 기본값으로 넘겨 주고, 그 뒤에 직접
-      // 고른 선택은 voicePicked로 남겨 그대로 지킵니다.
+      // 남성 목소리가 기본입니다. 그 전에 저장된 기록(여성 기본 시절)은 일부러
+      // 고른 적 없는 값을 들고 있을 수 있어 한 번만 새 기본값으로 넘겨 주고,
+      // 그 뒤에 직접 고른 선택은 voicePicked로 남겨 그대로 지킵니다.
       if (!(saved.settings && saved.settings.voicePicked)) {
         merged.settings.voiceGender = base.settings.voiceGender;
       }
