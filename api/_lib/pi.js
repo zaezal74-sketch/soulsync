@@ -97,11 +97,14 @@ async function piRequest(method, path, key, payload) {
       method,
       headers: {
         Authorization: "Key " + key,
-        "Content-Type": "application/json",
         Accept: "application/json"
       }
     };
-    if (payload !== undefined) init.body = JSON.stringify(payload);
+    // Only speak about a body when there is one (approve takes none).
+    if (payload !== undefined) {
+      init.headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(payload);
+    }
     if (controller) init.signal = controller.signal;
 
     const res = await fetch(PI_API_BASE + path, init);
