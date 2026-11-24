@@ -3,6 +3,10 @@
    One small layer that behaves the same everywhere:
      • In Pi Browser (window.Pi exists)  → real Pi.authenticate / Pi.createPayment
      • In any normal browser             → an honest demo simulation
+       (index.html loads the Pi SDK in every browser, so a plain Chrome tab
+        also ends up with window.Pi; the SDK alone no longer proves a Pi host —
+        see piHostSignals() below — and `?pi=1` on the URL forces a real Pi
+        session on a Pi Browser build whose signs we do not recognise.)
      • In Pi Browser without a working approval server (static hosting such as
        GitHub Pages, where POST /api/pi/approve answers 404/405) the adapter
        never opens a broken payment sheet: it checks the backend first and, when
@@ -45,7 +49,11 @@
     // the backend as unavailable (ms).
     requestTimeoutMs: 6000,
     // How long Pi.authenticate may take before the session continues in demo.
-    authTimeoutMs: 30000
+    // 12s, not 30s: a Pi Browser that does not answer must not leave the
+    // connect button spinning.
+    authTimeoutMs: 12000,
+    // How long to wait for the async Pi SDK script before giving up on it.
+    sdkWatchMs: 8000
   };
 
   // Statuses a static host (or a router with no such route) answers with.
@@ -55,6 +63,35 @@
     return typeof root.Pi !== "undefined" &&
       typeof root.Pi.authenticate === "function" &&
       typeof root.Pi.createPayment === "function";
+  }
+
+  /* --- which host is this page in? -------------------------------------
+     Pi Browser is the only host that can answer the SDK, and it leaves its own
+     signs on the page. They matter because index.html now loads the Pi SDK in
+     every browser: SDK presence alone would turn a desktop visitor into a
+     "Pi Browser" (12s sign-in waits, payment sheets that cannot open), while
+     the app promises an instant, honest demo everywhere else. Any one sign is
+     enough; `?pi=1` is the manual override for a Pi Browser build we cannot
+     recognise. */
+  function piHostSignals() {
+    var signals = { userAgent: false, injected: false, framed: false, referrer: false, forced: false };
+    var nav = root.navigator || {};
+    signals.userAgent = /PiBrowser/i.test(nav.userAgent || "");
+    // The host injected its own SDK before our scripts ran (see index.html).
+    signals.injected = !!root.__SS_PI_INJECTED;
+    try { signals.framed = !!root.parent && root.parent !== root; } catch (e) { signals.framed = false; }
+    var referrer = "";
+    try { referrer = (root.document && root.document.referrer) || ""; } catch (e) { referrer = ""; }
+    signals.referrer = /minepi\.com|pinet\.com|piappengine\.com/i.test(referrer);
+    var search = "";
+    try { search = (root.location && root.location.search) || ""; } catch (e) { search = ""; }
+    signals.forced = /[?&]pi=1(&|$)/.test(search);
+    return signals;
+  }
+
+  function isPiHost() {
+    var s = piHostSignals();
+    return !!(s.userAgent || s.injected || s.framed || s.referrer || s.forced);
   }
 
   function endpointUrl(name) {
@@ -138,7 +175,7 @@
     user: null,
     initialized: false,
 
-    isPiBrowser: function () { return hasPiSdk(); },
+    isPiBrowser: function () { return hasPiSdk() && isPiHost(); },
 
     /** Detect the environment once at start-up.
      *  @param {Function} [onChange] called if the SDK or payment capability becomes available later.
@@ -146,22 +183,69 @@
     init: function (onChange) {
       this._onChange = typeof onChange === "function" ? onChange : null;
       if (hasPiSdk()) {
-        this._enablePi();
+        if (isPiHost()) this._enablePi();
+        else this._stayDemoOnForeignHost();
         return this.mode;
       }
       this.mode = "demo";
       this.paymentMode = "demo";
       this.initialized = true;
-      // Pi Browser normally injects the SDK. If it did not, load it once so a
-      // real Pi session can still start; any failure simply keeps demo mode.
-      var ua = (root.navigator && root.navigator.userAgent) || "";
-      if (/PiBrowser/i.test(ua)) this._loadSdk();
+      // index.html loads the SDK asynchronously; it can arrive a moment later.
+      this._awaitSdk();
       return this.mode;
     },
 
+    /** SDK present, but this page is not a Pi host (a plain browser loaded it). */
+    _stayDemoOnForeignHost: function () {
+      this.mode = "demo";
+      this.paymentMode = "demo";
+      this.notice = this.notice || "no_host";
+      this.initialized = true;
+      if (this._onChange) this._onChange(this.mode);
+      return this.mode;
+    },
+
+    /**
+     * Wait (briefly) for the async SDK script. It is added by index.html; a
+     * page without the tag gets one only when the host is recognisably Pi
+     * Browser, so a plain browser never fetches it twice.
+     */
+    _awaitSdk: function () {
+      var self = this;
+      if (self._sdkWatch) return;
+      var doc = root.document;
+      if (!doc || typeof setInterval !== "function") return;
+      var tagged = false;
+      try { tagged = !!(doc.querySelector && doc.querySelector('script[src*="pi-sdk.js"]')); } catch (e) { tagged = false; }
+      if (!tagged && isPiHost()) self._loadSdk();
+
+      var waited = 0;
+      var timer = setInterval(function () {
+        if (hasPiSdk()) {
+          clearInterval(timer);
+          self._sdkWatch = null;
+          if (isPiHost()) self._enablePi();
+          else self._stayDemoOnForeignHost();
+          return;
+        }
+        waited += 150;
+        if (waited >= CONFIG.sdkWatchMs) {
+          clearInterval(timer);
+          self._sdkWatch = null;
+        }
+      }, 150);
+      // Node (the test harness) would otherwise stay alive for the whole wait.
+      if (timer && typeof timer.unref === "function") timer.unref();
+      self._sdkWatch = timer;
+    },
+
     _enablePi: function () {
+      if (this.mode === "pi") return this.mode;
       try {
-        root.Pi.init({ version: CONFIG.version, sandbox: CONFIG.sandbox });
+        var started = root.Pi.init({ version: CONFIG.version, sandbox: CONFIG.sandbox });
+        // A newer SDK returns a promise; a rejection (host not answering) must
+        // not become an unhandled one.
+        if (started && typeof started.then === "function") started.then(null, function () {});
         this.mode = "pi";
         this.paymentMode = "pi";
       } catch (err) {
@@ -177,21 +261,16 @@
       return this.mode;
     },
 
+    /** Inject the SDK once (only used when the page did not include the tag). */
     _loadSdk: function () {
       var self = this;
-      if (!root.document || this._loading) return;
-      this._loading = true;
+      if (!root.document || self._loading) return;
+      self._loading = true;
       var s = root.document.createElement("script");
       s.src = CONFIG.sdkUrl;
-      s.onload = function () {
-        self._loading = false;
-        if (hasPiSdk()) self._enablePi();
-      };
-      s.onerror = function () {
-        self._loading = false;
-        self.mode = "demo";
-        self.paymentMode = "demo";
-      };
+      s.async = true;
+      s.onload = function () { self._loading = false; };
+      s.onerror = function () { self._loading = false; };
       root.document.head.appendChild(s);
     },
 

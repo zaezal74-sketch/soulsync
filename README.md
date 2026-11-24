@@ -83,16 +83,18 @@ python3 -m http.server 4300
 
 | 환경 | 감지 | 동작 |
 | --- | --- | --- |
-| Pi Browser (`window.Pi` 존재) + 승인 서버 있음 | `SS_PI.mode === "pi"`, `paymentMode === "pi"` | `Pi.init` → `Pi.authenticate` → `Pi.createPayment` (서버 승인) |
-| Pi Browser + 승인 서버 없음(정적 호스팅, `/api/pi/approve` 404·405) | `SS_PI.mode === "pi"`, `paymentMode === "demo"` | 로그인은 실제 Pi로 시도하고, 봉헌은 결제창 없이 데모로 기록(`mode: "demo"`, 실제 차감 없음) |
+| Pi Browser + 승인 서버 있음 | `SS_PI.mode === "pi"`, `paymentMode === "pi"` | `Pi.init` → `Pi.authenticate` → `Pi.createPayment` (서버 승인) |
+| Pi Browser + 승인 서버 없음(정적 호스팅, `/api/pi/approve` 404·405·501, 또는 `PI_API_KEY` 미설정) | `SS_PI.mode === "pi"`, `paymentMode === "demo"` | 로그인은 실제 Pi로 시도하고, 봉헌은 결제창 없이 데모로 기록(`mode: "demo"`, 실제 차감 없음) |
 | 일반 브라우저 | `SS_PI.mode === "demo"` | 0.65초 지연 후 데모 로그인 / 0.9초 후 데모 봉헌 기록. 모든 결과에 `mode: "demo"` 표시 |
 
+- **Pi SDK는 `index.html`이 모든 브라우저에서 불러옵니다**(`<script src="https://sdk.minepi.com/pi-sdk.js" async>`). 그래서 Pi Browser의 사용자 에이전트가 `PiBrowser`를 달고 있지 않아도 `window.Pi`가 있고, SDK가 늦게 도착해도 어댑터가 알아서 붙잡습니다(최대 8초 기다림). `async`라서 느린 회선·오프라인에서도 페이지를 붙잡지 않습니다.
+- **대신 `window.Pi`의 존재만으로 Pi Browser라고 단정하지 않습니다.** SDK를 모든 브라우저에서 불러오므로 그렇게 하면 PC 크롬 사용자가 12초 로그인 대기와 열리지 않는 결제창을 만나게 됩니다. `pi-adapter.js`는 Pi Browser의 흔적(`PiBrowser` UA · Pi가 주입한 SDK · Pi 호스트가 띄운 프레임/리퍼러) 중 하나가 있을 때만 실결제 모드로 들어갑니다. 흔적을 알아보지 못하는 Pi Browser 빌드라면 주소 끝에 **`?pi=1`**을 붙이면 강제로 실결제 모드가 됩니다(예: `https://soulsync-sandy.vercel.app/?pi=1`).
 - **승인 서버 확인이 먼저입니다.** `Pi.createPayment`를 열기 전에 `POST <approve endpoint>`를 `{ probe: "soulsync-capability-check" }`로 한 번 두드려 봅니다(POST만이 진짜 라우트와 정적 호스팅의 405를 구분합니다). 404·405·501, HTML 응답, 네트워크 실패면 결제창을 열지 않고 데모로 기록합니다. 그래서 GitHub Pages 같은 정적 호스팅에서도 결제 도중 405가 뜨지 않습니다.
 - 확인 결과는 `SS_PI.backend`(`"live" | "missing"`)와 `SS_PI.paymentMode`에 남고, 화면 배지는 `Pi Browser · 실결제` / `Pi Browser · 데모` / `데모 모드`로 구분됩니다.
-- `Pi.authenticate`가 실패하거나 30초 안에 응답하지 않으면(도메인 미등록, 사용자 취소, 오프라인) 그 세션은 데모 파이오니어로 이어지고 토스트로 알려 줍니다.
+- `Pi.authenticate`가 실패하거나 **12초** 안에 응답하지 않으면(도메인 미등록, 사용자 취소, 오프라인) 그 세션은 데모 파이오니어로 이어지고 토스트로 알려 줍니다. 연결 버튼이 30초씩 돌지 않도록 12초로 줄였습니다.
 - 승인 서버가 항상 있는 배포라면 `CONFIG.demoFallback = false`로 두면 됩니다(이때는 항상 실결제 경로).
 
-- Pi Browser인데 SDK가 주입되지 않은 경우, 어댑터가 `https://sdk.minepi.com/pi-sdk.js`를 한 번만 동적으로 불러옵니다.
+- Pi Browser인데 SDK 태그가 없는 페이지(예: 단일 파일 미리보기)에서 열리면, 어댑터가 `https://sdk.minepi.com/pi-sdk.js`를 한 번만 동적으로 불러옵니다.
 - 데모 모드에서는 **실제 결제가 일어나지 않으며**, UI에도 "데모 모드 / 실제 결제 없음"이라고 표시됩니다.
 - `Pi.init`의 `sandbox` 값은 `pi-adapter.js` 상단 `CONFIG.sandbox`에서 바꿉니다(테스트: `true`, 실결제: `false`).
 
@@ -102,59 +104,53 @@ python3 -m http.server 4300
 3. **New App** 생성 후 아래를 입력합니다.
    - App Name: `SoulSync`
    - Description: `Faith, heart and daily rhythm — a Catholic prayer & routine companion for Pioneers`
-   - App URL: `https://zaezal74-sketch.github.io/` (루트 주소. Pi 포털은 하위 경로가 붙은 주소를 받지 않습니다)
+   - App URL: 앱을 여는 주소(루트 도메인. Pi 포털은 하위 경로가 붙은 주소를 받지 않습니다). 승인 서버가 있는 `https://soulsync-sandy.vercel.app/` 가 지금의 실결제 대상 주소입니다.
    - Category: `Lifestyle` / `Health & Wellness`
    - Logo, 스크린샷 업로드
 4. 앱 상세 화면에서 **API Key**(서버 승인용)를 발급받아 서버 환경변수에 넣습니다. 이 키는 절대 프론트엔드에 넣지 마세요.
 5. Pi Browser 주소창에 등록한 App URL을 열어 실제 로그인/결제를 확인합니다.
 6. 메인넷 노출을 원하면 포털의 체크리스트(작동하는 앱, 개인정보처리방침, 결제 완결성 등)를 채우고 심사를 요청합니다.
 
-### 3.3 결제 승인 서버 (필수)
+### 3.3 결제 승인 서버 (포함되어 있음 — Vercel)
 Pi 결제는 브라우저에서 끝나지 않습니다. 결제 ID를 서버에서 승인(approve)하고 완료(complete)해야 합니다.
-`pi-adapter.js`는 아래 경로를 호출하도록 되어 있습니다.
+그 서버를 이 폴더 안에 Vercel Serverless Functions로 넣어 두었습니다(빌드·의존성 없음, `fetch`만 사용).
 
 ```
-POST /api/pi/approve     { paymentId }
-POST /api/pi/complete    { paymentId, txid }
-POST /api/pi/incomplete  { paymentId }     // 중단된 결제 정리
+api/_lib/pi.js           # Pi API 호출·응답 공통부 (Vercel 라우트가 아니라 import 전용)
+api/pi/approve.js        # POST { paymentId }            → Pi 승인
+api/pi/complete.js       # POST { paymentId, txid }      → Pi 완료
+api/pi/incomplete.js     # POST { paymentId }            → 중단된 결제 기록(200)
 ```
 
-최소 예시 (Node 18+, Express):
+`pi-adapter.js`는 이 세 경로를 같은 도메인 기준으로 호출합니다.
 
-```js
-import express from "express";
-const app = express();
-app.use(express.json());
+**API 키 넣기 (한 번만)**
+1. Pi 개발자 포털 앱 상세에서 **API Key**를 복사합니다.
+2. Vercel 프로젝트 → Settings → Environment Variables → `PI_API_KEY` 추가(Production·Preview·Development 모두) → Save.
+3. Deployments → 최신 배포 → Redeploy(환경변수는 새 배포부터 적용됩니다).
 
-const PI_API = "https://api.minepi.com/v2";
-const KEY = process.env.PI_API_KEY; // 개발자 포털에서 발급
+키를 넣기 전에는 `/api/pi/approve`가 **404 `{"ok":false,"error":"PI_API_KEY_NOT_CONFIGURED"}`**로 답합니다.
+이 상태가 정상이고, 그동안 앱은 결제창을 열지 않고 데모로 기록합니다. 키를 넣고 나면 같은 주소가
+`{"ok":true,"configured":true}`로 답하고, 배지가 `Pi Browser · 실결제`로 바뀝니다.
 
-app.post("/api/pi/approve", async (req, res) => {
-  const r = await fetch(`${PI_API}/payments/${req.body.paymentId}/approve`, {
-    method: "POST",
-    headers: { Authorization: `Key ${KEY}` }
-  });
-  res.status(r.ok ? 200 : 502).json({ ok: r.ok });
-});
+**확인 방법**
 
-app.post("/api/pi/complete", async (req, res) => {
-  const r = await fetch(`${PI_API}/payments/${req.body.paymentId}/complete`, {
-    method: "POST",
-    headers: { Authorization: `Key ${KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ txid: req.body.txid })
-  });
-  res.status(r.ok ? 200 : 502).json({ ok: r.ok });
-});
-
-app.post("/api/pi/incomplete", (req, res) => {
-  console.log("incomplete payment", req.body.paymentId);
-  res.json({ ok: true });
-});
-
-app.listen(process.env.PORT || 8080);
+```bash
+curl -s -X POST https://soulsync-sandy.vercel.app/api/pi/approve \
+  -H 'Content-Type: application/json' -d '{"probe":"soulsync-capability-check"}'
+# 키 없음 → {"ok":false,"error":"PI_API_KEY_NOT_CONFIGURED"} (404)
+# 키 있음 → {"ok":true,"configured":true,"route":"/api/pi/approve"} (200)
 ```
 
-프론트엔드에서 다른 도메인의 API를 쓴다면 `pi-adapter.js`의 `CONFIG.apiBase`에 주소를 넣고 CORS를 허용하세요.
+**응답 규칙** (앱이 안전하게 데모로 남도록)
+- 키 미설정: approve `404`, complete·incomplete `501` — 어댑터는 이 셋을 "승인 서버 없음"으로 읽습니다.
+- Pi API가 거절(400 등): `502` + `{ ok:false, error:"PI_API_APPROVE_FAILED", upstreamStatus }` — 404로 바꾸지 않습니다(데모로 새지 않도록).
+- 네트워크 실패·8초 타임아웃: `502 PI_API_UNREACHABLE`.
+- POST가 아닌 요청: `405` + `Allow: POST`.
+- 키는 응답·프론트엔드에 절대 나오지 않습니다.
+
+다른 호스팅(Netlify·Express·PiNet 등)에 올린다면 같은 계약을 그대로 옮기면 됩니다.
+프론트엔드를 다른 도메인에 두었다면 `pi-adapter.js`의 `CONFIG.apiBase`에 승인 서버 주소를 넣고 CORS를 허용하세요.
 (같은 도메인에 두는 구성이 가장 간단합니다.)
 
 ### 3.4 해커톤 관점의 Pi 활용 포인트
@@ -192,8 +188,10 @@ projects/soulsync/
 ├── rosary.js           # 묵주기도 진행 엔진(순수 로직, Node로 단위 테스트 가능)
 ├── coach.js            # 키워드 기반 코치 엔진(추후 LLM으로 교체 가능한 응답 형태)
 ├── pi-adapter.js       # Pi Browser / 데모 모드 어댑터
+├── api/pi/             # Vercel 결제 승인 서버 (approve·complete·incomplete)
 ├── tests/smoke.test.js # jsdom 기반 스모크 테스트 (선택)
 ├── tests/pi-browser.test.js # Pi Browser + 정적 호스팅 폴백 시나리오 테스트 (선택)
+├── tests/api-pi.test.js # api/pi 핸들러 단위 테스트(가짜 req/res·fetch, 선택)
 ├── README.md
 └── SUBMISSION_EN.md    # Pi Next 제출용 영문 소개 + 개인정보처리방침 초안
 ```
