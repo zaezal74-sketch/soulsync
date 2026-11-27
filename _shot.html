@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>SoulSync · 412×915 capture</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #ffffff; font: 12px/1.4 sans-serif; }
+  .row { display: flex; gap: 10px; padding: 8px; align-items: flex-start; }
+  .col { width: 412px; }
+  .cap { height: 18px; color: #444; }
+  iframe { display: block; width: 412px; height: 915px; border: 0; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="col">
+      <div class="cap">morning</div>
+      <iframe data-slot="morning" src="/" title="morning"></iframe>
+    </div>
+    <div class="col">
+      <div class="cap">day</div>
+      <iframe data-slot="day" src="/" title="day"></iframe>
+    </div>
+    <div class="col">
+      <div class="cap">evening</div>
+      <iframe data-slot="evening" src="/" title="evening"></iframe>
+    </div>
+    <div class="col">
+      <div class="cap">morning · garden alt</div>
+      <iframe data-slot="morning" data-photo="assets/hero-garden.webp" src="/" title="garden"></iframe>
+    </div>
+  </div>
+  <script>
+    // Test harness only: pin each frame to one time-of-day plate so all three
+    // can be captured at once, whatever the clock says.
+    document.querySelectorAll('iframe').forEach(function (f) {
+      f.addEventListener('load', function () {
+        var doc = f.contentDocument;
+        if (!doc || !doc.body) return;
+        doc.body.setAttribute('data-hero', f.getAttribute('data-slot'));
+        var photo = f.getAttribute('data-photo');
+        if (photo) doc.body.style.setProperty('--hero-photo', 'url("' + photo + '")');
+      });
+    });
+  </script>
+</body>
+</html>
