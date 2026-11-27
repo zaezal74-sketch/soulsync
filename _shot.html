@@ -14,6 +14,10 @@
 <body>
   <div class="row">
     <div class="col">
+      <div class="cap">live</div>
+      <iframe data-live="1" src="/" title="live"></iframe>
+    </div>
+    <div class="col">
       <div class="cap">morning</div>
       <iframe data-slot="morning" src="/" title="morning"></iframe>
     </div>
@@ -27,13 +31,20 @@
     </div>
   </div>
   <script>
-    // Test harness only: pin each frame to one time-of-day plate so all three
-    // can be captured at once, whatever the clock says.
+    // Test harness only. Each frame is pinned to one time-of-day plate so all
+    // of them can be captured at once, whatever the clock says; the "live"
+    // frame is left alone. ?night=1 puts every frame in focus mode, to check
+    // the dark face of the new bright plate.
+    var night = /(?:^|[?&])night=1(?:&|$)/.test(location.search);
     document.querySelectorAll('iframe').forEach(function (f) {
       f.addEventListener('load', function () {
         var doc = f.contentDocument;
         if (!doc || !doc.body) return;
-        doc.body.setAttribute('data-hero', f.getAttribute('data-slot'));
+        if (f.dataset.slot) doc.body.setAttribute('data-hero', f.dataset.slot);
+        if (night) {
+          var frameEl = doc.querySelector('.phone-frame');
+          if (frameEl) frameEl.classList.add('focus-mode');
+        }
       });
     });
   </script>
