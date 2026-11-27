@@ -25,10 +25,6 @@
       <div class="cap">evening</div>
       <iframe data-slot="evening" src="/" title="evening"></iframe>
     </div>
-    <div class="col">
-      <div class="cap">morning · garden alt</div>
-      <iframe data-slot="morning" data-photo="assets/hero-garden.webp" src="/" title="garden"></iframe>
-    </div>
   </div>
   <script>
     // Test harness only: pin each frame to one time-of-day plate so all three
@@ -38,8 +34,6 @@
         var doc = f.contentDocument;
         if (!doc || !doc.body) return;
         doc.body.setAttribute('data-hero', f.getAttribute('data-slot'));
-        var photo = f.getAttribute('data-photo');
-        if (photo) doc.body.style.setProperty('--hero-photo', 'url("' + photo + '")');
       });
     });
   </script>
