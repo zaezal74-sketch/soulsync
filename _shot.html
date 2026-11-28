@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>capture</title>
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  #frame{width:412px;height:915px;border:0;display:block}
+</style></head>
+<body>
+<iframe id="frame" src="/"></iframe>
+<script>
+  var q = new URLSearchParams(location.search);
+  var f = document.getElementById('frame');
+  f.addEventListener('load', function(){
+    setTimeout(function(){
+      try {
+        var d = f.contentDocument;
+        if (q.get('focus')) { var b = d.getElementById('focusBtn'); if (b) b.click(); }
+      } catch (e) {}
+    }, 500);
+  });
+</script>
+</body></html>
